@@ -289,6 +289,10 @@ td {
   align-items: start;
 }
 
+.visual-grid + .visual-grid {
+  margin-top: 16px;
+}
+
 .signal-card {
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(9, 16, 28, 0.98));
   border-radius: 20px;

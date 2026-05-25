@@ -273,7 +273,7 @@ export default function HomePage() {
           <h2>Visual Analytics</h2>
           <p>Sample research outputs from the Python pipeline.</p>
         </div>
-        <div className="visual-grid">
+        <div className="visual-grid visual-grid-wide">
           <VisualCard
             src="/images/aapl_xgboost_equity_curve.png"
             alt="AAPL XGBoost Equity Curve"
@@ -287,18 +287,6 @@ export default function HomePage() {
             }
           />
           <VisualCard
-            src="/images/aapl_random_forest_confusion_matrix.png"
-            alt="Random Forest Confusion Matrix"
-            title="Random Forest Confusion Matrix"
-            onOpen={() =>
-              setActiveVisual({
-                src: "/images/aapl_random_forest_confusion_matrix.png",
-                alt: "Random Forest Confusion Matrix",
-                title: "Random Forest Confusion Matrix"
-              })
-            }
-          />
-          <VisualCard
             src="/images/aapl_lstm_equity_curve.png"
             alt="AAPL LSTM Equity Curve"
             title="LSTM Strategy vs Benchmarks"
@@ -307,6 +295,20 @@ export default function HomePage() {
                 src: "/images/aapl_lstm_equity_curve.png",
                 alt: "AAPL LSTM Equity Curve",
                 title: "LSTM Strategy vs Benchmarks"
+              })
+            }
+          />
+        </div>
+        <div className="visual-grid visual-grid-square">
+          <VisualCard
+            src="/images/aapl_random_forest_confusion_matrix.png"
+            alt="Random Forest Confusion Matrix"
+            title="Random Forest Confusion Matrix"
+            onOpen={() =>
+              setActiveVisual({
+                src: "/images/aapl_random_forest_confusion_matrix.png",
+                alt: "Random Forest Confusion Matrix",
+                title: "Random Forest Confusion Matrix"
               })
             }
           />
