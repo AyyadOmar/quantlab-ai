@@ -4,6 +4,14 @@ QuantLab AI is a production-style quantitative machine learning platform for equ
 
 This project is designed to feel closer to a junior quant research or ML engineering platform than a notebook demo. The goal is not to claim a magic stock predictor. The goal is to show realistic research workflow, disciplined evaluation, and strong software engineering structure.
 
+## Research Focus
+
+QuantLab AI is built around a simple idea: classification signal and tradable edge are not the same thing. A model can show some ability to predict next-day direction while still failing to produce a robust trading strategy after realistic temporal validation, turnover, and benchmark comparison. This project is designed to study that gap directly.
+
+## Tech Stack
+
+`Python` • `pandas` • `NumPy` • `scikit-learn` • `XGBoost` • `PyTorch` • `SQLite` • `Matplotlib` • `Seaborn` • `Streamlit` • `yfinance`
+
 ## What It Does
 
 - Downloads historical equity data with `yfinance`
@@ -66,6 +74,16 @@ quantlab-ai/
 6. Produce out-of-sample probabilities and signals
 7. Backtest the resulting strategy against baseline rules
 8. Save metrics, charts, and serialized models
+
+```mermaid
+flowchart TD
+    A["Yahoo Finance Data"] --> B["Feature Engineering"]
+    B --> C["Walk-Forward Validation"]
+    C --> D["Model Training"]
+    D --> E["Probability & Signal Generation"]
+    E --> F["Backtesting Engine"]
+    F --> G["Benchmarks, Metrics, and Visualizations"]
+```
 
 ## Feature Set
 
@@ -145,6 +163,14 @@ streamlit run streamlit_app.py
 
 The latest benchmark below reflects the upgraded evaluation setup: expanding-window walk-forward validation plus baseline comparison. This is a more realistic measure of signal quality than the earlier single-split experiments.
 
+## Model Classification Metrics
+
+The table below summarizes fold-averaged out-of-sample classification quality from walk-forward validation for the latest published `AAPL` XGBoost experiment.
+
+| Model | Mean Accuracy | Mean Precision | Mean Recall | Mean F1 | Mean ROC-AUC | Folds |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| XGBoost | `0.481` | `0.542` | `0.372` | `0.419` | `0.504` | `4` |
+
 ### AAPL walk-forward XGBoost results
 
 | Metric | Strategy | Buy & Hold | Always Long | Momentum |
@@ -159,9 +185,16 @@ The latest benchmark below reflects the upgraded evaluation setup: expanding-win
 
 - Walk-forward validation materially reduced the apparent performance of the baseline models, which is exactly why time-aware evaluation matters.
 - The current `xgboost` strategy beats the naive momentum rule, but still fails to outperform passive exposure.
-- The platform demonstrates that classification signal and tradable edge are not the same thing.
 - Adding market-context features improves the realism of the feature space and creates a stronger foundation for future iteration.
 - The project is most compelling as a quantitative research system that identifies weaknesses honestly, not as a claim of market-beating performance.
+
+## Research Lessons
+
+- Walk-forward validation exposed substantial performance decay relative to earlier single-split experiments.
+- Small predictive signal was not enough to create robust trading performance after repeated out-of-sample testing.
+- Benchmark comparisons were essential because raw model outputs looked more promising than the resulting tradable strategy.
+- Market-context features such as relative strength and rolling beta create a more realistic research setup than stock-only technical indicators.
+- Model complexity alone did not solve the problem; validation design and signal robustness mattered more.
 
 ## Visuals
 
