@@ -1,0 +1,17 @@
+.venv/
+.pycache/
+__pycache__/
+.pytest_cache/
+.DS_Store
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+data/raw/*.csv
+data/processed/*.csv
+models/*.joblib
+models/*.pt
+visualizations/*.png
+backtesting/*.csv
+backtesting/*.json

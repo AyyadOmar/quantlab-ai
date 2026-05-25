@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quantlab-ai"
+version = "0.1.0"
+description = "Production-style quantitative ML platform for stock prediction and backtesting."
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+  { name = "Omar Ayyad" }
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
