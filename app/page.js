@@ -121,6 +121,7 @@ export default function HomePage() {
   const [summary, setSummary] = useState(defaultSummary);
   const [benchmarks, setBenchmarks] = useState(defaultBenchmarks);
   const [signals, setSignals] = useState(defaultSignals);
+  const [activeVisual, setActiveVisual] = useState(null);
 
   useEffect(() => {
     async function loadData() {
@@ -273,10 +274,54 @@ export default function HomePage() {
           <p>Sample research outputs from the Python pipeline.</p>
         </div>
         <div className="visual-grid">
-          <VisualCard src="/images/aapl_xgboost_equity_curve.png" alt="AAPL XGBoost Equity Curve" title="XGBoost Strategy vs Benchmarks" />
-          <VisualCard src="/images/aapl_random_forest_confusion_matrix.png" alt="Random Forest Confusion Matrix" title="Random Forest Confusion Matrix" />
-          <VisualCard src="/images/aapl_lstm_equity_curve.png" alt="AAPL LSTM Equity Curve" title="LSTM Strategy vs Benchmarks" />
-          <VisualCard src="/images/aapl_candlestick.png" alt="AAPL Candlestick Chart" title="AAPL Candlestick Chart" />
+          <VisualCard
+            src="/images/aapl_xgboost_equity_curve.png"
+            alt="AAPL XGBoost Equity Curve"
+            title="XGBoost Strategy vs Benchmarks"
+            onOpen={() =>
+              setActiveVisual({
+                src: "/images/aapl_xgboost_equity_curve.png",
+                alt: "AAPL XGBoost Equity Curve",
+                title: "XGBoost Strategy vs Benchmarks"
+              })
+            }
+          />
+          <VisualCard
+            src="/images/aapl_random_forest_confusion_matrix.png"
+            alt="Random Forest Confusion Matrix"
+            title="Random Forest Confusion Matrix"
+            onOpen={() =>
+              setActiveVisual({
+                src: "/images/aapl_random_forest_confusion_matrix.png",
+                alt: "Random Forest Confusion Matrix",
+                title: "Random Forest Confusion Matrix"
+              })
+            }
+          />
+          <VisualCard
+            src="/images/aapl_lstm_equity_curve.png"
+            alt="AAPL LSTM Equity Curve"
+            title="LSTM Strategy vs Benchmarks"
+            onOpen={() =>
+              setActiveVisual({
+                src: "/images/aapl_lstm_equity_curve.png",
+                alt: "AAPL LSTM Equity Curve",
+                title: "LSTM Strategy vs Benchmarks"
+              })
+            }
+          />
+          <VisualCard
+            src="/images/aapl_candlestick.png"
+            alt="AAPL Candlestick Chart"
+            title="AAPL Candlestick Chart"
+            onOpen={() =>
+              setActiveVisual({
+                src: "/images/aapl_candlestick.png",
+                alt: "AAPL Candlestick Chart",
+                title: "AAPL Candlestick Chart"
+              })
+            }
+          />
         </div>
       </section>
 
@@ -306,6 +351,20 @@ Artifacts         ->  Committed demo assets + JSON`}</pre>
           </article>
         </div>
       </section>
+
+      {activeVisual ? (
+        <div className="lightbox-backdrop" onClick={() => setActiveVisual(null)} role="presentation">
+          <div className="lightbox-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+            <button className="lightbox-close" onClick={() => setActiveVisual(null)} aria-label="Close image">
+              ×
+            </button>
+            <div className="lightbox-image-wrap">
+              <img src={activeVisual.src} alt={activeVisual.alt} />
+            </div>
+            <h3>{activeVisual.title}</h3>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
@@ -328,13 +387,18 @@ function MiniStat({ label, value, tone }) {
   );
 }
 
-function VisualCard({ src, alt, title }) {
+function VisualCard({ src, alt, title, onOpen }) {
   return (
     <article className="visual-card">
       <div className="visual-frame">
-        <img src={src} alt={alt} />
+        <button className="visual-button" onClick={onOpen} aria-label={`Open ${title}`}>
+          <img src={src} alt={alt} />
+        </button>
       </div>
       <h3>{title}</h3>
+      <button className="visual-expand" onClick={onOpen}>
+        Expand Chart
+      </button>
     </article>
   );
 }
