@@ -8,6 +8,8 @@ QuantLab AI is a production-style machine learning platform for equity data inge
 - Multiple model families: classical ML and deep learning
 - Modular Python package with clean separation of concerns
 - Reproducible configuration and model persistence
+- Walk-forward validation instead of a single naive holdout split
+- Benchmark-aware backtesting against buy-and-hold, always-long, and momentum baselines
 - Notebook support for experiments without turning the repo into a notebook-only project
 
 ## Architecture
@@ -78,10 +80,10 @@ quantlab-ai/
    - lagged returns
    - volume trend indicators
 4. Generate next-day movement labels
-5. Train multiple models on a chronological split
+5. Train multiple models with walk-forward expanding-window validation
 6. Evaluate precision, recall, F1, ROC AUC, and confusion matrix
 7. Convert probabilities into trading signals
-8. Backtest the signal-driven strategy against the historical period
+8. Backtest the signal-driven strategy against benchmark strategies
 9. Save artifacts, plots, and experiment outputs
 
 ## Supported models
@@ -134,6 +136,15 @@ PYTHONPATH=src python3 -m quantlab_ai.cli run \
 
 Initial experiments were run on `AAPL` daily data from `2018-01-01` to `2024-12-31` using both classical machine learning models and a PyTorch LSTM. This section is intentionally honest: the goal is not to claim unrealistic alpha, but to show a full quantitative ML workflow that surfaces what is and is not working.
 
+### Evaluation design
+
+- Expanding-window walk-forward validation was used to generate out-of-sample predictions across time rather than relying on a single static split.
+- Trading signals were evaluated against multiple baselines:
+  - buy-and-hold
+  - always-long exposure
+  - a simple momentum rule based on prior-day price direction
+- This setup makes the repo more representative of how a real quant research workflow evaluates predictive models under temporal constraints.
+
 ### AAPL model comparison
 
 | Model | Strategy Return | Benchmark Return | Max Drawdown | Sharpe Ratio | Win Rate | Trade Count |
@@ -151,6 +162,7 @@ Initial experiments were run on `AAPL` daily data from `2018-01-01` to `2024-12-
 - `Logistic Regression` underperformed most clearly, which suggests the current feature set is not linearly separable enough for a simple classifier.
 - The `LSTM` completed successfully and added architectural depth to the platform, but on this baseline setup it did not outperform the tree-based models.
 - Across all four models, the main lesson is that getting some directional classification signal is easier than producing a robust trading edge after thresholding and transaction costs.
+- The benchmark comparison makes the project more credible because it highlights whether a model is truly adding value over naive exposure rules.
 - This is exactly the kind of result worth showing recruiters: the platform is working, the evaluation is realistic, and the next iteration path is data-driven rather than hand-wavy.
 
 ### Visual outputs
@@ -187,7 +199,6 @@ Initial experiments were run on `AAPL` daily data from `2018-01-01` to `2024-12-
 
 ### Short-term improvements
 
-- Add benchmark strategies such as buy-and-hold and naive momentum
 - Expand feature engineering with MACD, Bollinger Bands, ATR, OBV, and market regime indicators
 - Tune the trading threshold instead of using a fixed cutoff
 - Add unit tests for indicators, dataset building, and backtesting correctness

@@ -17,8 +17,12 @@ class PlotService:
     def plot_equity_curve(self, equity_curve: pd.DataFrame, ticker: str, model_name: str) -> str:
         figure, axis = plt.subplots(figsize=(10, 5))
         axis.plot(pd.to_datetime(equity_curve["date"]), equity_curve["equity_curve"], label="Strategy")
-        axis.plot(pd.to_datetime(equity_curve["date"]), equity_curve["benchmark_curve"], label="Benchmark")
-        axis.set_title(f"{ticker} Strategy vs Benchmark")
+        axis.plot(pd.to_datetime(equity_curve["date"]), equity_curve["benchmark_curve"], label="Buy & Hold")
+        if "always_long_curve" in equity_curve:
+            axis.plot(pd.to_datetime(equity_curve["date"]), equity_curve["always_long_curve"], label="Always Long", alpha=0.8)
+        if "momentum_curve" in equity_curve:
+            axis.plot(pd.to_datetime(equity_curve["date"]), equity_curve["momentum_curve"], label="Momentum", alpha=0.8)
+        axis.set_title(f"{ticker} Strategy vs Benchmarks")
         axis.set_ylabel("Growth of $1")
         axis.legend()
         axis.grid(alpha=0.3)

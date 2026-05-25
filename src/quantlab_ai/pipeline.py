@@ -51,6 +51,7 @@ class PipelineRunner:
         combined_metrics = {
             "classification": artifacts.metrics,
             "backtest": backtest.metrics,
+            "benchmarks": backtest.benchmark_metrics,
         }
         self.repository.log_experiment(
             ticker=ticker,

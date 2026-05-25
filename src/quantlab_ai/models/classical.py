@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.base import clone
 from sklearn.preprocessing import FunctionTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
@@ -13,8 +14,7 @@ from sklearn.preprocessing import StandardScaler
 
 from ..config import Settings
 from ..features.builder import FEATURE_COLUMNS
-from .base import ModelArtifacts, PredictiveModel
-from .evaluator import evaluate_classifier
+from .base import ModelArtifacts, PredictiveModel, aggregate_classification_metrics, combine_fold_predictions
 from .registry import ModelRegistry
 
 try:
@@ -36,27 +36,39 @@ class ClassicalModelTrainer(PredictiveModel):
         self.registry = ModelRegistry(self.settings)
 
     def train(self, features: pd.DataFrame) -> ModelArtifacts:
-        train_frame, test_frame = self._chronological_split(features)
-        x_train = train_frame[FEATURE_COLUMNS].replace([np.inf, -np.inf], np.nan)
-        y_train = train_frame["target"]
-        x_test = test_frame[FEATURE_COLUMNS].replace([np.inf, -np.inf], np.nan)
-        y_test = test_frame["target"]
+        estimator_template = self._build_estimator()
+        prediction_frames: list[pd.DataFrame] = []
 
-        model = self._build_estimator()
-        model.fit(x_train, y_train)
+        for fold_index, (train_frame, test_frame) in enumerate(self.walk_forward_splits(features), start=1):
+            x_train = train_frame[FEATURE_COLUMNS].replace([np.inf, -np.inf], np.nan)
+            y_train = train_frame["target"]
+            x_test = test_frame[FEATURE_COLUMNS].replace([np.inf, -np.inf], np.nan)
 
-        y_pred = model.predict(x_test)
-        y_prob = self._probabilities(model, x_test)
-        metrics = evaluate_classifier(y_test.to_numpy(), y_pred, y_prob).to_dict()
+            model = clone(estimator_template)
+            model.fit(x_train, y_train)
 
-        predictions = test_frame[["date", "close", "target", "next_day_return"]].copy()
-        predictions["prediction"] = y_pred
-        predictions["prob_up"] = y_prob
-        predictions["signal"] = (predictions["prob_up"] >= self.settings.signal_threshold).astype(int)
+            y_pred = model.predict(x_test)
+            y_prob = self._probabilities(model, x_test)
+
+            fold_predictions = test_frame[["date", "close", "target", "next_day_return"]].copy()
+            fold_predictions["prediction"] = y_pred
+            fold_predictions["prob_up"] = y_prob
+            fold_predictions["signal"] = (fold_predictions["prob_up"] >= self.settings.signal_threshold).astype(int)
+            fold_predictions["fold"] = fold_index
+            prediction_frames.append(fold_predictions)
+
+        predictions = combine_fold_predictions(prediction_frames)
+        metrics = aggregate_classification_metrics(predictions)
+
+        final_model = clone(estimator_template)
+        final_model.fit(
+            features[FEATURE_COLUMNS].replace([np.inf, -np.inf], np.nan),
+            features["target"],
+        )
 
         artifact_path = self.registry.save_joblib(
             artifact_name=f"{self.model_name}_{features['ticker'].iloc[0].lower()}",
-            payload=model,
+            payload=final_model,
         )
         return ModelArtifacts(
             model_name=self.model_name,
@@ -64,10 +76,6 @@ class ClassicalModelTrainer(PredictiveModel):
             predictions=predictions,
             artifact_path=artifact_path,
         )
-
-    def _chronological_split(self, features: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-        split_index = int(len(features) * (1 - self.settings.test_size))
-        return features.iloc[:split_index].copy(), features.iloc[split_index:].copy()
 
     def _build_estimator(self) -> Pipeline | RandomForestClassifier:
         if self.model_name == "logistic_regression":
