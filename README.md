@@ -132,7 +132,7 @@ PYTHONPATH=src python3 -m quantlab_ai.cli run \
 
 ## Baseline experiments
 
-Initial experiments were run on `AAPL` daily data from `2018-01-01` to `2024-12-31` using three baseline classifiers. This section is intentionally honest: the goal is not to claim unrealistic alpha, but to show a full quantitative ML workflow that surfaces what is and is not working.
+Initial experiments were run on `AAPL` daily data from `2018-01-01` to `2024-12-31` using both classical machine learning models and a PyTorch LSTM. This section is intentionally honest: the goal is not to claim unrealistic alpha, but to show a full quantitative ML workflow that surfaces what is and is not working.
 
 ### AAPL model comparison
 
@@ -141,6 +141,7 @@ Initial experiments were run on `AAPL` daily data from `2018-01-01` to `2024-12-
 | Logistic Regression | `-6.76%` | `+41.85%` | `-7.04%` | `-2.00` | `22.22%` | `9` |
 | Random Forest | `-3.45%` | `+41.85%` | `-6.67%` | `-0.90` | `54.17%` | `24` |
 | XGBoost | `+0.33%` | `+41.85%` | `-7.55%` | `-0.08` | `55.36%` | `56` |
+| LSTM | `-4.62%` | `+41.54%` | `-8.05%` | `-0.80` | `46.15%` | `26` |
 
 ### Key observations
 
@@ -148,7 +149,8 @@ Initial experiments were run on `AAPL` daily data from `2018-01-01` to `2024-12-
 - `XGBoost` was the strongest baseline of the three, producing a slightly positive strategy return and the best win rate, though it still materially underperformed buy-and-hold.
 - `Random Forest` generated fewer trades and a modestly positive win rate, but its signals were not strong enough to overcome missed upside exposure.
 - `Logistic Regression` underperformed most clearly, which suggests the current feature set is not linearly separable enough for a simple classifier.
-- Across all three models, the main lesson is that getting some directional classification signal is easier than producing a robust trading edge after thresholding and transaction costs.
+- The `LSTM` completed successfully and added architectural depth to the platform, but on this baseline setup it did not outperform the tree-based models.
+- Across all four models, the main lesson is that getting some directional classification signal is easier than producing a robust trading edge after thresholding and transaction costs.
 - This is exactly the kind of result worth showing recruiters: the platform is working, the evaluation is realistic, and the next iteration path is data-driven rather than hand-wavy.
 
 ### Visual outputs
@@ -169,6 +171,10 @@ Initial experiments were run on `AAPL` daily data from `2018-01-01` to `2024-12-
 
 ![AAPL XGBoost Equity Curve](visualizations/aapl_xgboost_equity_curve.png)
 
+#### LSTM equity curve
+
+![AAPL LSTM Equity Curve](visualizations/aapl_lstm_equity_curve.png)
+
 #### Logistic Regression confusion matrix
 
 ![AAPL Logistic Regression Confusion Matrix](visualizations/aapl_logistic_regression_confusion_matrix.png)
@@ -181,7 +187,6 @@ Initial experiments were run on `AAPL` daily data from `2018-01-01` to `2024-12-
 
 ### Short-term improvements
 
-- Run `lstm` on the same ticker and extend the comparison table across deep learning and classical models
 - Add benchmark strategies such as buy-and-hold and naive momentum
 - Expand feature engineering with MACD, Bollinger Bands, ATR, OBV, and market regime indicators
 - Tune the trading threshold instead of using a fixed cutoff
