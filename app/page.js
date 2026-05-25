@@ -388,7 +388,7 @@ export default function HomePage() {
       <section className="section-stack">
         <div className="section-header">
           <h2>Visual Analytics</h2>
-          <p>Sample research outputs from the Python pipeline.</p>
+          <p>Latest public AAPL XGBoost research outputs from the Python pipeline.</p>
         </div>
         <div className="visual-grid visual-grid-wide">
           <VisualCard
@@ -404,28 +404,28 @@ export default function HomePage() {
             }
           />
           <VisualCard
-            src="/images/aapl_lstm_equity_curve.png"
-            alt="AAPL LSTM Equity Curve"
-            title="LSTM Strategy vs Benchmarks"
+            src="/images/aapl_xgboost_probabilities.png"
+            alt="AAPL XGBoost Probability Distribution"
+            title="XGBoost Probability Distribution"
             onOpen={() =>
               setActiveVisual({
-                src: "/images/aapl_lstm_equity_curve.png",
-                alt: "AAPL LSTM Equity Curve",
-                title: "LSTM Strategy vs Benchmarks"
+                src: "/images/aapl_xgboost_probabilities.png",
+                alt: "AAPL XGBoost Probability Distribution",
+                title: "XGBoost Probability Distribution"
               })
             }
           />
         </div>
         <div className="visual-grid visual-grid-square">
           <VisualCard
-            src="/images/aapl_random_forest_confusion_matrix.png"
-            alt="Random Forest Confusion Matrix"
-            title="Random Forest Confusion Matrix"
+            src="/images/aapl_xgboost_confusion_matrix.png"
+            alt="XGBoost Confusion Matrix"
+            title="XGBoost Confusion Matrix"
             onOpen={() =>
               setActiveVisual({
-                src: "/images/aapl_random_forest_confusion_matrix.png",
-                alt: "Random Forest Confusion Matrix",
-                title: "Random Forest Confusion Matrix"
+                src: "/images/aapl_xgboost_confusion_matrix.png",
+                alt: "XGBoost Confusion Matrix",
+                title: "XGBoost Confusion Matrix"
               })
             }
           />
