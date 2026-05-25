@@ -10,7 +10,7 @@ QuantLab AI is built around a simple idea: classification signal and tradable ed
 
 ## Tech Stack
 
-`Python` • `pandas` • `NumPy` • `scikit-learn` • `XGBoost` • `PyTorch` • `SQLite` • `Matplotlib` • `Seaborn` • `Streamlit` • `yfinance`
+`Python` • `FastAPI` • `Next.js` • `React` • `pandas` • `NumPy` • `scikit-learn` • `XGBoost` • `PyTorch` • `SQLite` • `Matplotlib` • `Seaborn` • `yfinance` • `Vercel`
 
 ## What It Does
 
@@ -144,10 +144,11 @@ PYTHONPATH=src python3 -m quantlab_ai.cli run \
   --model lstm
 ```
 
-### 4. Launch the demo app locally
+### 4. Run the Vercel-style web demo locally
 
 ```bash
-streamlit run streamlit_app.py
+npm install
+npm run dev
 ```
 
 ## Outputs
@@ -158,6 +159,10 @@ streamlit run streamlit_app.py
 - `models/`: persisted trained artifacts
 - `backtesting/`: strategy summaries, benchmarks, and trade logs
 - `visualizations/`: candlestick charts, confusion matrices, probability histograms, and equity curves
+
+## Web Demo
+
+The public-facing demo is now structured as a `Next.js` frontend with lightweight Python API endpoints for benchmark and live-signal data. This makes the project easier to deploy on `Vercel` and presents the research more like a real product than a notebook dashboard.
 
 ## Latest Public Benchmark Snapshot
 
@@ -225,26 +230,25 @@ The table below summarizes fold-averaged out-of-sample classification quality fr
 
 ## Demo Deployment
 
-The easiest way to publish a live demo is with `Streamlit Community Cloud`.
+The recommended deployment path for the website is `Vercel`.
 
 1. Push this repository to GitHub
-2. Create a new Streamlit app
-3. Select the repository branch
-4. Set `streamlit_app.py` as the entrypoint
-5. Deploy and share the generated public URL
+2. Import the repository into Vercel
+3. Let Vercel detect the `Next.js` frontend automatically
+4. Deploy the project so the frontend and Python API functions ship together
+5. Share the generated public URL
 
-A stronger second version of the project would separate the system into:
+This repository uses:
 
-- a `FastAPI` backend for model inference and experiment endpoints
-- a `Streamlit` or React frontend for charts, metrics, and latest signals
-- a hosted deployment on `Render` or a similar platform
+- a `Next.js` frontend in `app/`
+- Python API endpoints in `api/`
+- committed demo assets and JSON snapshots under `docs/` and `public/`
 
 Useful references:
 
-- [Streamlit Community Cloud](https://share.streamlit.io/)
-- [Streamlit deployment guide](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/deploy)
-- [FastAPI deployment docs](https://fastapi.tiangolo.com/deployment/)
-- [Render web services docs](https://render.com/docs/web-services/)
+- [Next.js on Vercel](https://vercel.com/docs/frameworks/nextjs)
+- [FastAPI on Vercel](https://vercel.com/docs/frameworks/backend/fastapi)
+- [Python runtime on Vercel](https://vercel.com/docs/functions/runtimes/python)
 
 ## Notes
 

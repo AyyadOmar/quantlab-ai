@@ -12,3 +12,4 @@ seaborn>=0.13.0
 mplfinance>=0.12.10b0
 python-dateutil>=2.9.0
 streamlit>=1.38.0
+fastapi>=0.115.0

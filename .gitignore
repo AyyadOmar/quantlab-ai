@@ -2,6 +2,8 @@
 .pycache/
 __pycache__/
 .pytest_cache/
+.next/
+node_modules/
 .DS_Store
 *.pyc
 *.pyo
