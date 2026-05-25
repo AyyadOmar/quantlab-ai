@@ -130,6 +130,63 @@ PYTHONPATH=src python3 -m quantlab_ai.cli run \
 - Backtest metrics and trade log in `backtesting/`
 - Charts in `visualizations/`
 
+## Baseline experiment
+
+The first end-to-end run was executed on `AAPL` daily data from `2018-01-01` to `2024-12-31` using a Random Forest classifier. This baseline is intentionally included to demonstrate not just model training, but realistic quantitative evaluation: the system generated predictions, converted them into signals, backtested the resulting trades, and surfaced where the strategy fell short.
+
+### AAPL Random Forest results
+
+- Strategy total return: `-3.45%`
+- Buy-and-hold benchmark return: `+41.85%`
+- Max drawdown: `-6.67%`
+- Sharpe ratio: `-0.90`
+- Win rate: `54.17%`
+- Trade count: `24`
+
+### Key observations
+
+- The pipeline successfully produced a full research workflow: downloaded data, engineered features, trained a model, generated probabilities, created trading signals, and backtested them.
+- The model achieved a slightly positive win rate, but the strategy still underperformed buy-and-hold, showing that directional accuracy alone is not enough to generate alpha.
+- Predicted probabilities were tightly clustered around the midpoint, which suggests weak class separation and limited confidence in the signal.
+- The confusion matrix shows the model missed many true upward-movement days, which helps explain the muted strategy performance.
+- This is a strong baseline for iteration because it reveals exactly where improvements are needed: richer features, better threshold tuning, class-balance handling, and stronger time-series validation.
+
+### Visual outputs
+
+#### Equity curve
+
+![AAPL Random Forest Equity Curve](visualizations/aapl_random_forest_equity_curve.png)
+
+#### Confusion matrix
+
+![AAPL Random Forest Confusion Matrix](visualizations/aapl_random_forest_confusion_matrix.png)
+
+#### Probability distribution
+
+![AAPL Random Forest Probability Distribution](visualizations/aapl_random_forest_probabilities.png)
+
+#### Candlestick chart
+
+![AAPL Candlestick Chart](visualizations/aapl_candlestick.png)
+
+## Roadmap
+
+### Short-term improvements
+
+- Run `logistic_regression`, `xgboost`, and `lstm` on the same ticker and compare them in a results table
+- Add benchmark strategies such as buy-and-hold and naive momentum
+- Expand feature engineering with MACD, Bollinger Bands, ATR, OBV, and market regime indicators
+- Tune the trading threshold instead of using a fixed cutoff
+- Add unit tests for indicators, dataset building, and backtesting correctness
+
+### Production-oriented upgrades
+
+- Add a Flask or FastAPI inference API for latest-signal serving
+- Add Docker support and GitHub Actions for reproducibility
+- Store experiment runs with richer metadata for comparison and tracking
+- Extend the backtester to support position sizing, stop-loss rules, and transaction-cost sensitivity
+- Add a dashboard layer for model diagnostics and strategy monitoring
+
 ## Suggested additions
 
 ### Additional ML features
