@@ -130,40 +130,48 @@ PYTHONPATH=src python3 -m quantlab_ai.cli run \
 - Backtest metrics and trade log in `backtesting/`
 - Charts in `visualizations/`
 
-## Baseline experiment
+## Baseline experiments
 
-The first end-to-end run was executed on `AAPL` daily data from `2018-01-01` to `2024-12-31` using a Random Forest classifier. This baseline is intentionally included to demonstrate not just model training, but realistic quantitative evaluation: the system generated predictions, converted them into signals, backtested the resulting trades, and surfaced where the strategy fell short.
+Initial experiments were run on `AAPL` daily data from `2018-01-01` to `2024-12-31` using three baseline classifiers. This section is intentionally honest: the goal is not to claim unrealistic alpha, but to show a full quantitative ML workflow that surfaces what is and is not working.
 
-### AAPL Random Forest results
+### AAPL model comparison
 
-- Strategy total return: `-3.45%`
-- Buy-and-hold benchmark return: `+41.85%`
-- Max drawdown: `-6.67%`
-- Sharpe ratio: `-0.90`
-- Win rate: `54.17%`
-- Trade count: `24`
+| Model | Strategy Return | Benchmark Return | Max Drawdown | Sharpe Ratio | Win Rate | Trade Count |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Logistic Regression | `-6.76%` | `+41.85%` | `-7.04%` | `-2.00` | `22.22%` | `9` |
+| Random Forest | `-3.45%` | `+41.85%` | `-6.67%` | `-0.90` | `54.17%` | `24` |
+| XGBoost | `+0.33%` | `+41.85%` | `-7.55%` | `-0.08` | `55.36%` | `56` |
 
 ### Key observations
 
-- The pipeline successfully produced a full research workflow: downloaded data, engineered features, trained a model, generated probabilities, created trading signals, and backtested them.
-- The model achieved a slightly positive win rate, but the strategy still underperformed buy-and-hold, showing that directional accuracy alone is not enough to generate alpha.
-- Predicted probabilities were tightly clustered around the midpoint, which suggests weak class separation and limited confidence in the signal.
-- The confusion matrix shows the model missed many true upward-movement days, which helps explain the muted strategy performance.
-- This is a strong baseline for iteration because it reveals exactly where improvements are needed: richer features, better threshold tuning, class-balance handling, and stronger time-series validation.
+- The pipeline successfully executed a full research loop: data ingestion, feature engineering, supervised learning, probability generation, signal creation, backtesting, and visualization.
+- `XGBoost` was the strongest baseline of the three, producing a slightly positive strategy return and the best win rate, though it still materially underperformed buy-and-hold.
+- `Random Forest` generated fewer trades and a modestly positive win rate, but its signals were not strong enough to overcome missed upside exposure.
+- `Logistic Regression` underperformed most clearly, which suggests the current feature set is not linearly separable enough for a simple classifier.
+- Across all three models, the main lesson is that getting some directional classification signal is easier than producing a robust trading edge after thresholding and transaction costs.
+- This is exactly the kind of result worth showing recruiters: the platform is working, the evaluation is realistic, and the next iteration path is data-driven rather than hand-wavy.
 
 ### Visual outputs
 
-#### Equity curve
+#### Random Forest equity curve
 
 ![AAPL Random Forest Equity Curve](visualizations/aapl_random_forest_equity_curve.png)
 
-#### Confusion matrix
+#### Random Forest confusion matrix
 
 ![AAPL Random Forest Confusion Matrix](visualizations/aapl_random_forest_confusion_matrix.png)
 
-#### Probability distribution
+#### Random Forest probability distribution
 
 ![AAPL Random Forest Probability Distribution](visualizations/aapl_random_forest_probabilities.png)
+
+#### XGBoost equity curve
+
+![AAPL XGBoost Equity Curve](visualizations/aapl_xgboost_equity_curve.png)
+
+#### Logistic Regression confusion matrix
+
+![AAPL Logistic Regression Confusion Matrix](visualizations/aapl_logistic_regression_confusion_matrix.png)
 
 #### Candlestick chart
 
@@ -173,7 +181,7 @@ The first end-to-end run was executed on `AAPL` daily data from `2018-01-01` to 
 
 ### Short-term improvements
 
-- Run `logistic_regression`, `xgboost`, and `lstm` on the same ticker and compare them in a results table
+- Run `lstm` on the same ticker and extend the comparison table across deep learning and classical models
 - Add benchmark strategies such as buy-and-hold and naive momentum
 - Expand feature engineering with MACD, Bollinger Bands, ATR, OBV, and market regime indicators
 - Tune the trading threshold instead of using a fixed cutoff

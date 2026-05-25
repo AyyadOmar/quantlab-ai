@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -31,9 +32,9 @@ class ClassicalModelTrainer(PredictiveModel):
 
     def train(self, features: pd.DataFrame) -> ModelArtifacts:
         train_frame, test_frame = self._chronological_split(features)
-        x_train = train_frame[FEATURE_COLUMNS]
+        x_train = train_frame[FEATURE_COLUMNS].replace([np.inf, -np.inf], np.nan)
         y_train = train_frame["target"]
-        x_test = test_frame[FEATURE_COLUMNS]
+        x_test = test_frame[FEATURE_COLUMNS].replace([np.inf, -np.inf], np.nan)
         y_test = test_frame["target"]
 
         model = self._build_estimator()
@@ -67,8 +68,16 @@ class ClassicalModelTrainer(PredictiveModel):
         if self.model_name == "logistic_regression":
             return Pipeline(
                 steps=[
+                    ("imputer", SimpleImputer(strategy="median")),
                     ("scaler", StandardScaler()),
-                    ("classifier", LogisticRegression(max_iter=1000, random_state=self.settings.random_state)),
+                    (
+                        "classifier",
+                        LogisticRegression(
+                            max_iter=1000,
+                            solver="liblinear",
+                            random_state=self.settings.random_state,
+                        ),
+                    ),
                 ]
             )
         if self.model_name == "random_forest":

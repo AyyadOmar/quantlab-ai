@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import numpy as np
 import pandas as pd
 
 from ..config import Settings
@@ -32,6 +33,7 @@ class FeatureBuilder:
         engineered = TechnicalIndicatorFactory.add_indicators(raw_data)
         engineered["target"] = (engineered["close"].shift(-1) > engineered["close"]).astype(int)
         engineered["next_day_return"] = engineered["close"].shift(-1) / engineered["close"] - 1
+        engineered[FEATURE_COLUMNS] = engineered[FEATURE_COLUMNS].replace([np.inf, -np.inf], np.nan)
         engineered = engineered.dropna().reset_index(drop=True)
 
         output_path = self.settings.processed_data_dir / f"{ticker.lower()}_features.csv"
