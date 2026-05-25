@@ -29,7 +29,11 @@ class PipelineRunner:
     def run(self, ticker: str, start_date: str, end_date: str, model_name: str) -> dict:
         raw_data = self.loader.download(ticker, start_date, end_date)
         self.loader.cache_to_csv(ticker, raw_data)
-        features = self.builder.build(raw_data, ticker)
+        context_data = None
+        if ticker != self.settings.market_context_ticker:
+            context_data = self.loader.download(self.settings.market_context_ticker, start_date, end_date)
+            self.loader.cache_to_csv(self.settings.market_context_ticker, context_data)
+        features = self.builder.build(raw_data, ticker, context_data=context_data)
 
         if model_name == "lstm":
             trainer = LSTMTrainer(self.settings)

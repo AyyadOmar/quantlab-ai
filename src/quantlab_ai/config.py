@@ -19,6 +19,7 @@ class Settings:
     signal_threshold: float = 0.55
     risk_free_rate: float = 0.01
     trading_fee_bps: float = 5.0
+    market_context_ticker: str = "SPY"
     walk_forward_initial_train_size: float = 0.6
     walk_forward_test_size: float = 0.1
     lstm_sequence_length: int = 20
