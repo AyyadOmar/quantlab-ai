@@ -183,25 +183,36 @@ The latest benchmark below reflects the upgraded evaluation setup: expanding-win
 
 ## Roadmap
 
-- Tune probability thresholds to reduce overtrading
-- Add MACD, Bollinger Bands, ATR, and OBV features
-- Extend experiments across `MSFT`, `NVDA`, `SPY`, and sector ETFs
-- Add unit tests for indicators and backtesting correctness
-- Add a lightweight API for serving latest predictions
+- Add threshold tuning and position filters to reduce overtrading
+- Expand the feature set with MACD, Bollinger Bands, ATR, and OBV
+- Extend experiments across multiple equities, ETFs, and sectors
+- Add unit tests for indicators, validation logic, and backtesting correctness
+- Expose latest predictions through a lightweight API
 - Add GitHub Actions and Docker for reproducibility
 
 ## Demo Deployment
 
-The easiest public deployment path is `Streamlit Community Cloud`. Connect the GitHub repository, choose `streamlit_app.py` as the entrypoint, and Streamlit will deploy the app to a public `streamlit.app` URL. Streamlit documents that Community Cloud deploys apps from a GitHub repository and asks you to select the repository, branch, and entrypoint file during deployment. It also notes that apps are available on a shareable subdomain and that most apps deploy within a few minutes. [Streamlit deploy guide](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/deploy) [Streamlit Community Cloud overview](https://docs.streamlit.io/deploy/streamlit-community-cloud)
+The easiest way to publish a live demo is with `Streamlit Community Cloud`.
 
-If you want a more “software engineering” deployment later, a stronger second version would be:
+1. Push this repository to GitHub
+2. Create a new Streamlit app
+3. Select the repository branch
+4. Set `streamlit_app.py` as the entrypoint
+5. Deploy and share the generated public URL
 
-- `FastAPI` backend for prediction endpoints
-- `Streamlit` or React frontend for charts and model exploration
-- Deployment on `Render` or a similar app host for a custom full-stack demo
+A stronger second version of the project would separate the system into:
 
-FastAPI’s deployment docs cover production serving patterns, and Render’s web service docs describe hosting Python web apps that bind to a port. [FastAPI deployment docs](https://fastapi.tiangolo.com/deployment/) [Render web services docs](https://render.com/docs/web-services/)
+- a `FastAPI` backend for model inference and experiment endpoints
+- a `Streamlit` or React frontend for charts, metrics, and latest signals
+- a hosted deployment on `Render` or a similar platform
+
+Useful references:
+
+- [Streamlit Community Cloud](https://share.streamlit.io/)
+- [Streamlit deployment guide](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/deploy)
+- [FastAPI deployment docs](https://fastapi.tiangolo.com/deployment/)
+- [Render web services docs](https://render.com/docs/web-services/)
 
 ## Notes
 
-Notebooks are included only for experimentation. The primary deliverable is the Python application itself: structured, extensible, and ready to grow into a more advanced quant research stack.
+Notebooks are included only for experimentation. The primary deliverable is the Python application itself: structured, extensible, and designed to evolve into a more advanced quant research stack.
