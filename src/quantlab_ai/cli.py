@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+from datetime import date
 
 from .config import Settings
 
@@ -19,6 +21,23 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["logistic_regression", "random_forest", "xgboost", "lstm"],
         help="Model to train",
     )
+
+    predict_parser = subparsers.add_parser("predict-latest", help="Generate and store the latest live prediction")
+    predict_parser.add_argument("--ticker", required=True, help="Ticker symbol, e.g. AAPL")
+    predict_parser.add_argument("--start", default="2018-01-01", help="Historical training start date YYYY-MM-DD")
+    predict_parser.add_argument("--end", default=date.today().isoformat(), help="End date for latest available data")
+    predict_parser.add_argument(
+        "--model",
+        required=True,
+        choices=["logistic_regression", "random_forest", "xgboost", "lstm", "all"],
+        help="Model to use, or 'all' to generate predictions from every model",
+    )
+
+    resolve_parser = subparsers.add_parser("resolve-live", help="Resolve pending live predictions against actual next-day outcomes")
+    resolve_parser.add_argument("--ticker", help="Optional ticker filter")
+
+    report_parser = subparsers.add_parser("report-live", help="Show live prediction accuracy summary")
+    report_parser.add_argument("--ticker", help="Optional ticker filter")
 
     return parser
 
@@ -39,6 +58,29 @@ def main() -> None:
             end_date=args.end,
             model_name=args.model,
         )
+    elif args.command == "predict-latest":
+        from .pipeline import PipelineRunner
+
+        runner = PipelineRunner(settings=settings)
+        result = runner.predict_latest(
+            ticker=args.ticker.upper(),
+            start_date=args.start,
+            end_date=args.end,
+            model_name=args.model,
+        )
+        print(json.dumps(result, indent=2))
+    elif args.command == "resolve-live":
+        from .pipeline import PipelineRunner
+
+        runner = PipelineRunner(settings=settings)
+        result = runner.resolve_live_predictions(ticker=args.ticker.upper() if args.ticker else None)
+        print(json.dumps(result, indent=2))
+    elif args.command == "report-live":
+        from .pipeline import PipelineRunner
+
+        runner = PipelineRunner(settings=settings)
+        result = runner.live_prediction_summary(ticker=args.ticker.upper() if args.ticker else None)
+        print(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":

@@ -11,13 +11,28 @@ import pandas as pd
 class ModelArtifacts:
     model_name: str
     metrics: dict
+    cross_validation: dict
     predictions: pd.DataFrame
+    artifact_path: str
+
+
+@dataclass
+class LatestPrediction:
+    model_name: str
+    as_of_date: str
+    prediction: int
+    prob_up: float
+    signal: int
     artifact_path: str
 
 
 class PredictiveModel(ABC):
     @abstractmethod
     def train(self, features: pd.DataFrame) -> ModelArtifacts:
+        raise NotImplementedError
+
+    @abstractmethod
+    def predict_latest(self, training_features: pd.DataFrame, inference_features: pd.DataFrame) -> LatestPrediction:
         raise NotImplementedError
 
     def walk_forward_splits(self, features: pd.DataFrame) -> list[tuple[pd.DataFrame, pd.DataFrame]]:
@@ -59,3 +74,37 @@ def aggregate_classification_metrics(predictions: pd.DataFrame) -> dict:
     metrics["fold_count"] = int(predictions["fold"].nunique()) if "fold" in predictions else 1
     metrics["evaluation_rows"] = int(len(predictions))
     return metrics
+
+
+def build_cross_validation_report(predictions: pd.DataFrame) -> dict:
+    from .evaluator import evaluate_classifier
+
+    folds: list[dict] = []
+    for fold_id, fold_frame in predictions.groupby("fold", sort=True):
+        fold_metrics = evaluate_classifier(
+            fold_frame["target"].to_numpy(),
+            fold_frame["prediction"].to_numpy(),
+            fold_frame["prob_up"].to_numpy(),
+        ).to_dict()
+        fold_metrics["fold"] = int(fold_id)
+        fold_metrics["rows"] = int(len(fold_frame))
+        fold_metrics["start_date"] = str(fold_frame["date"].iloc[0])
+        fold_metrics["end_date"] = str(fold_frame["date"].iloc[-1])
+        folds.append(fold_metrics)
+
+    if not folds:
+        return {"scheme": "walk_forward", "folds": [], "summary": {}}
+
+    summary = {
+        "mean_accuracy": float(np.mean([fold["accuracy"] for fold in folds])),
+        "mean_precision": float(np.mean([fold["precision"] for fold in folds])),
+        "mean_recall": float(np.mean([fold["recall"] for fold in folds])),
+        "mean_f1": float(np.mean([fold["f1"] for fold in folds])),
+        "mean_roc_auc": float(np.mean([fold["roc_auc"] for fold in folds])),
+        "fold_count": len(folds),
+    }
+    return {
+        "scheme": "walk_forward",
+        "folds": folds,
+        "summary": summary,
+    }

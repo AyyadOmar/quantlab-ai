@@ -11,7 +11,14 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from ..config import Settings
 from ..features.builder import FEATURE_COLUMNS
-from .base import ModelArtifacts, PredictiveModel, aggregate_classification_metrics, combine_fold_predictions
+from .base import (
+    LatestPrediction,
+    ModelArtifacts,
+    PredictiveModel,
+    aggregate_classification_metrics,
+    build_cross_validation_report,
+    combine_fold_predictions,
+)
 from .registry import ModelRegistry
 
 
@@ -67,6 +74,7 @@ class LSTMTrainer(PredictiveModel):
 
         predictions = combine_fold_predictions(prediction_frames)
         metrics = aggregate_classification_metrics(predictions)
+        cross_validation = build_cross_validation_report(predictions)
 
         full_scaler = StandardScaler()
         full_scaled = full_scaler.fit_transform(features[FEATURE_COLUMNS])
@@ -85,7 +93,39 @@ class LSTMTrainer(PredictiveModel):
         return ModelArtifacts(
             model_name="lstm",
             metrics=metrics,
+            cross_validation=cross_validation,
             predictions=predictions,
+            artifact_path=artifact_path,
+        )
+
+    def predict_latest(self, training_features: pd.DataFrame, inference_features: pd.DataFrame) -> LatestPrediction:
+        scaler = StandardScaler()
+        training_scaled = scaler.fit_transform(training_features[FEATURE_COLUMNS])
+        x_train, y_train = self._create_sequences(training_scaled, training_features["target"].to_numpy())
+        model = self._train_model(x_train, y_train)
+
+        inference_scaled = scaler.transform(inference_features[FEATURE_COLUMNS])
+        sequence_length = self.settings.lstm_sequence_length
+        if len(inference_scaled) < sequence_length:
+            raise ValueError("Not enough rows to create an LSTM inference sequence.")
+
+        latest_sequence = inference_scaled[-sequence_length:]
+        probabilities, predictions = self._predict(model, np.array([latest_sequence]))
+        artifact_path = self.registry.save_torch(
+            artifact_name=f"lstm_{training_features['ticker'].iloc[0].lower()}_latest",
+            payload={
+                "model_state_dict": model.state_dict(),
+                "scaler": scaler,
+                "feature_columns": FEATURE_COLUMNS,
+                "sequence_length": sequence_length,
+            },
+        )
+        return LatestPrediction(
+            model_name="lstm",
+            as_of_date=str(inference_features["date"].iloc[-1]),
+            prediction=int(predictions[0]),
+            prob_up=float(probabilities[0]),
+            signal=int(probabilities[0] >= self.settings.signal_threshold),
             artifact_path=artifact_path,
         )
 

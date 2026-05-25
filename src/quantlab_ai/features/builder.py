@@ -35,9 +35,7 @@ class FeatureBuilder:
     settings: Settings
 
     def build(self, raw_data: pd.DataFrame, ticker: str, context_data: pd.DataFrame | None = None) -> pd.DataFrame:
-        engineered = TechnicalIndicatorFactory.add_indicators(raw_data)
-        if context_data is not None:
-            engineered = self._merge_market_context(engineered, context_data)
+        engineered = self._prepare_features(raw_data, context_data)
         engineered["target"] = (engineered["close"].shift(-1) > engineered["close"]).astype(int)
         engineered["next_day_return"] = engineered["close"].shift(-1) / engineered["close"] - 1
         engineered[FEATURE_COLUMNS] = engineered[FEATURE_COLUMNS].replace([np.inf, -np.inf], np.nan)
@@ -45,6 +43,22 @@ class FeatureBuilder:
 
         output_path = self.settings.processed_data_dir / f"{ticker.lower()}_features.csv"
         engineered.to_csv(output_path, index=False)
+        return engineered
+
+    def build_for_inference(
+        self,
+        raw_data: pd.DataFrame,
+        context_data: pd.DataFrame | None = None,
+    ) -> pd.DataFrame:
+        engineered = self._prepare_features(raw_data, context_data)
+        engineered[FEATURE_COLUMNS] = engineered[FEATURE_COLUMNS].replace([np.inf, -np.inf], np.nan)
+        engineered = engineered.dropna(subset=FEATURE_COLUMNS).reset_index(drop=True)
+        return engineered
+
+    def _prepare_features(self, raw_data: pd.DataFrame, context_data: pd.DataFrame | None = None) -> pd.DataFrame:
+        engineered = TechnicalIndicatorFactory.add_indicators(raw_data)
+        if context_data is not None:
+            engineered = self._merge_market_context(engineered, context_data)
         return engineered
 
     def _merge_market_context(self, asset_data: pd.DataFrame, context_data: pd.DataFrame) -> pd.DataFrame:

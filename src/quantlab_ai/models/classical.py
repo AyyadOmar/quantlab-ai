@@ -14,7 +14,14 @@ from sklearn.preprocessing import StandardScaler
 
 from ..config import Settings
 from ..features.builder import FEATURE_COLUMNS
-from .base import ModelArtifacts, PredictiveModel, aggregate_classification_metrics, combine_fold_predictions
+from .base import (
+    LatestPrediction,
+    ModelArtifacts,
+    PredictiveModel,
+    aggregate_classification_metrics,
+    build_cross_validation_report,
+    combine_fold_predictions,
+)
 from .registry import ModelRegistry
 
 try:
@@ -59,6 +66,7 @@ class ClassicalModelTrainer(PredictiveModel):
 
         predictions = combine_fold_predictions(prediction_frames)
         metrics = aggregate_classification_metrics(predictions)
+        cross_validation = build_cross_validation_report(predictions)
 
         final_model = clone(estimator_template)
         final_model.fit(
@@ -73,7 +81,34 @@ class ClassicalModelTrainer(PredictiveModel):
         return ModelArtifacts(
             model_name=self.model_name,
             metrics=metrics,
+            cross_validation=cross_validation,
             predictions=predictions,
+            artifact_path=artifact_path,
+        )
+
+    def predict_latest(self, training_features: pd.DataFrame, inference_features: pd.DataFrame) -> LatestPrediction:
+        model = self._build_estimator()
+        model.fit(
+            training_features[FEATURE_COLUMNS].replace([np.inf, -np.inf], np.nan),
+            training_features["target"],
+        )
+
+        latest_frame = inference_features.iloc[[-1]].copy()
+        latest_x = latest_frame[FEATURE_COLUMNS].replace([np.inf, -np.inf], np.nan)
+        prediction = int(model.predict(latest_x)[0])
+        prob_up = float(self._probabilities(model, latest_x)[0])
+        signal = int(prob_up >= self.settings.signal_threshold)
+
+        artifact_path = self.registry.save_joblib(
+            artifact_name=f"{self.model_name}_{training_features['ticker'].iloc[0].lower()}_latest",
+            payload=model,
+        )
+        return LatestPrediction(
+            model_name=self.model_name,
+            as_of_date=str(latest_frame["date"].iloc[0]),
+            prediction=prediction,
+            prob_up=prob_up,
+            signal=signal,
             artifact_path=artifact_path,
         )
 
