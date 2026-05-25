@@ -126,6 +126,12 @@ PYTHONPATH=src python3 -m quantlab_ai.cli run \
   --model lstm
 ```
 
+### 4. Launch the demo app locally
+
+```bash
+streamlit run streamlit_app.py
+```
+
 ## Outputs
 
 - `data/raw/`: cached ticker and market data
@@ -183,6 +189,18 @@ The latest benchmark below reflects the upgraded evaluation setup: expanding-win
 - Add unit tests for indicators and backtesting correctness
 - Add a lightweight API for serving latest predictions
 - Add GitHub Actions and Docker for reproducibility
+
+## Demo Deployment
+
+The easiest public deployment path is `Streamlit Community Cloud`. Connect the GitHub repository, choose `streamlit_app.py` as the entrypoint, and Streamlit will deploy the app to a public `streamlit.app` URL. Streamlit documents that Community Cloud deploys apps from a GitHub repository and asks you to select the repository, branch, and entrypoint file during deployment. It also notes that apps are available on a shareable subdomain and that most apps deploy within a few minutes. [Streamlit deploy guide](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/deploy) [Streamlit Community Cloud overview](https://docs.streamlit.io/deploy/streamlit-community-cloud)
+
+If you want a more “software engineering” deployment later, a stronger second version would be:
+
+- `FastAPI` backend for prediction endpoints
+- `Streamlit` or React frontend for charts and model exploration
+- Deployment on `Render` or a similar app host for a custom full-stack demo
+
+FastAPI’s deployment docs cover production serving patterns, and Render’s web service docs describe hosting Python web apps that bind to a port. [FastAPI deployment docs](https://fastapi.tiangolo.com/deployment/) [Render web services docs](https://render.com/docs/web-services/)
 
 ## Notes
 
