@@ -43,3 +43,8 @@ def demo_benchmarks() -> dict:
 @app.get("/api/demo/live-signals")
 def demo_live_signals() -> list[dict]:
     return read_json("aapl_latest_signals.json")
+
+
+@app.get("/api/demo/cross-validation")
+def demo_cross_validation() -> dict:
+    return read_json("aapl_xgboost_cross_validation.json")

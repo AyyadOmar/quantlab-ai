@@ -70,6 +70,64 @@ const defaultSignals = [
   }
 ];
 
+const defaultCrossValidation = {
+  scheme: "walk_forward",
+  folds: [
+    {
+      fold: 1,
+      rows: 173,
+      start_date: "2022-03-23 00:00:00",
+      end_date: "2022-11-28 00:00:00",
+      accuracy: 0.5549132947976878,
+      precision: 0.5512820512820513,
+      recall: 0.5058823529411764,
+      f1: 0.5276073619631901,
+      roc_auc: 0.5530748663101605
+    },
+    {
+      fold: 2,
+      rows: 173,
+      start_date: "2022-11-29 00:00:00",
+      end_date: "2023-08-08 00:00:00",
+      accuracy: 0.48554913294797686,
+      precision: 0.5113636363636364,
+      recall: 0.4945054945054945,
+      f1: 0.5027932960893855,
+      roc_auc: 0.49597963012597157
+    },
+    {
+      fold: 3,
+      rows: 173,
+      start_date: "2023-08-09 00:00:00",
+      end_date: "2024-04-16 00:00:00",
+      accuracy: 0.4682080924855491,
+      precision: 0.4406779661016949,
+      recall: 0.3058823529411765,
+      f1: 0.3611111111111111,
+      roc_auc: 0.46510695187165774
+    },
+    {
+      fold: 4,
+      rows: 173,
+      start_date: "2024-04-17 00:00:00",
+      end_date: "2024-12-20 00:00:00",
+      accuracy: 0.4161849710982659,
+      precision: 0.6666666666666666,
+      recall: 0.18018018018018017,
+      f1: 0.28368794326241137,
+      roc_auc: 0.5010171461784365
+    }
+  ],
+  summary: {
+    mean_accuracy: 0.48121387283236994,
+    mean_precision: 0.5424975801035123,
+    mean_recall: 0.3716125951420069,
+    mean_f1: 0.41879992810652455,
+    mean_roc_auc: 0.5037946486215565,
+    fold_count: 4
+  }
+};
+
 function pct(value) {
   return `${(value * 100).toFixed(2)}%`;
 }
@@ -121,15 +179,17 @@ export default function HomePage() {
   const [summary, setSummary] = useState(defaultSummary);
   const [benchmarks, setBenchmarks] = useState(defaultBenchmarks);
   const [signals, setSignals] = useState(defaultSignals);
+  const [crossValidation, setCrossValidation] = useState(defaultCrossValidation);
   const [activeVisual, setActiveVisual] = useState(null);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [summaryRes, benchmarksRes, signalsRes] = await Promise.all([
+        const [summaryRes, benchmarksRes, signalsRes, crossValidationRes] = await Promise.all([
           fetch("/api/demo/summary"),
           fetch("/api/demo/benchmarks"),
-          fetch("/api/demo/live-signals")
+          fetch("/api/demo/live-signals"),
+          fetch("/api/demo/cross-validation")
         ]);
 
         if (summaryRes.ok) {
@@ -141,6 +201,9 @@ export default function HomePage() {
         if (signalsRes.ok) {
           setSignals(await signalsRes.json());
         }
+        if (crossValidationRes.ok) {
+          setCrossValidation(await crossValidationRes.json());
+        }
       } catch (_error) {
         // Keep baked-in demo fallbacks if the API is unavailable.
       }
@@ -150,6 +213,19 @@ export default function HomePage() {
   }, []);
 
   const rows = useMemo(() => benchmarkRows(summary, benchmarks), [summary, benchmarks]);
+  const foldRows = useMemo(
+    () =>
+      crossValidation.folds.map((fold) => ({
+        fold: fold.fold,
+        window: `${fold.start_date.slice(0, 10)} to ${fold.end_date.slice(0, 10)}`,
+        accuracy: pct(fold.accuracy),
+        precision: pct(fold.precision),
+        recall: pct(fold.recall),
+        f1: pct(fold.f1),
+        rocAuc: ratio(fold.roc_auc)
+      })),
+    [crossValidation]
+  );
 
   return (
     <main className="page-shell">
@@ -176,7 +252,48 @@ export default function HomePage() {
         <MetricCard label="Ticker" value="AAPL" />
         <MetricCard label="Lead Model" value="XGBoost" />
         <MetricCard label="Strategy Return" value={pct(summary.total_return)} tone={cls(summary.total_return)} />
-        <MetricCard label="Buy & Hold Return" value={pct(summary.benchmark_return)} tone="positive" />
+        <MetricCard label="Walk-Forward Accuracy" value={pct(crossValidation.summary.mean_accuracy)} />
+      </section>
+
+      <section className="section-stack">
+        <div className="section-header">
+          <h2>Predictive Quality</h2>
+          <p>Walk-forward classification metrics showing how well the model predicts next-day direction out of sample.</p>
+        </div>
+        <div className="metric-grid validation-grid">
+          <MetricCard label="Mean Accuracy" value={pct(crossValidation.summary.mean_accuracy)} />
+          <MetricCard label="Mean Precision" value={pct(crossValidation.summary.mean_precision)} />
+          <MetricCard label="Mean Recall" value={pct(crossValidation.summary.mean_recall)} />
+          <MetricCard label="Mean ROC-AUC" value={ratio(crossValidation.summary.mean_roc_auc)} />
+        </div>
+        <div className="table-card fold-table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>Fold</th>
+                <th>Validation Window</th>
+                <th>Accuracy</th>
+                <th>Precision</th>
+                <th>Recall</th>
+                <th>F1</th>
+                <th>ROC-AUC</th>
+              </tr>
+            </thead>
+            <tbody>
+              {foldRows.map((row) => (
+                <tr key={row.fold}>
+                  <td>{row.fold}</td>
+                  <td>{row.window}</td>
+                  <td>{row.accuracy}</td>
+                  <td>{row.precision}</td>
+                  <td>{row.recall}</td>
+                  <td>{row.f1}</td>
+                  <td>{row.rocAuc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="content-grid">

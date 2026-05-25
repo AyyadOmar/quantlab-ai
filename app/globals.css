@@ -129,6 +129,11 @@ h1 {
   margin-top: 20px;
 }
 
+.validation-grid {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
 .metric-card {
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(11, 18, 32, 0.98));
   border-radius: 18px;
@@ -251,6 +256,10 @@ h1 {
 .table-card {
   overflow: hidden;
   padding: 0;
+}
+
+.fold-table-card {
+  margin-top: 14px;
 }
 
 table {
