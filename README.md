@@ -161,19 +161,19 @@ The latest benchmark below reflects the upgraded evaluation setup: expanding-win
 
 ### XGBoost equity curve
 
-![AAPL XGBoost Equity Curve](visualizations/aapl_xgboost_equity_curve.png)
+![AAPL XGBoost Equity Curve](docs/assets/aapl_xgboost_equity_curve.png)
 
 ### Random Forest confusion matrix
 
-![AAPL Random Forest Confusion Matrix](visualizations/aapl_random_forest_confusion_matrix.png)
+![AAPL Random Forest Confusion Matrix](docs/assets/aapl_random_forest_confusion_matrix.png)
 
 ### LSTM equity curve
 
-![AAPL LSTM Equity Curve](visualizations/aapl_lstm_equity_curve.png)
+![AAPL LSTM Equity Curve](docs/assets/aapl_lstm_equity_curve.png)
 
 ### AAPL candlestick chart
 
-![AAPL Candlestick Chart](visualizations/aapl_candlestick.png)
+![AAPL Candlestick Chart](docs/assets/aapl_candlestick.png)
 
 ## Roadmap
 
@@ -183,16 +183,6 @@ The latest benchmark below reflects the upgraded evaluation setup: expanding-win
 - Add unit tests for indicators and backtesting correctness
 - Add a lightweight API for serving latest predictions
 - Add GitHub Actions and Docker for reproducibility
-
-## Resume Positioning
-
-This project is best framed as a quantitative ML research platform, not a stock-picking bot.
-
-Strong resume bullets:
-
-- Built a modular Python quantitative research platform for stock prediction, feature engineering, walk-forward validation, and benchmark-aware backtesting across scikit-learn and PyTorch models.
-- Designed an end-to-end ML pipeline using `pandas`, `NumPy`, `scikit-learn`, `PyTorch`, `SQLite`, and `yfinance`, with experiment logging, model persistence, and visualization outputs.
-- Implemented technical and market-context features, including rolling beta and relative strength versus `SPY`, to study whether predictive signals generalize under realistic temporal evaluation.
 
 ## Notes
 
