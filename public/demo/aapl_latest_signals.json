@@ -1,0 +1,34 @@
+[
+  {
+    "ticker": "AAPL",
+    "model_name": "logistic_regression",
+    "as_of_date": "2026-05-22 00:00:00",
+    "prediction": 1,
+    "prob_up": 0.5409567919713436,
+    "signal": 0
+  },
+  {
+    "ticker": "AAPL",
+    "model_name": "random_forest",
+    "as_of_date": "2026-05-22 00:00:00",
+    "prediction": 1,
+    "prob_up": 0.5578161083352521,
+    "signal": 1
+  },
+  {
+    "ticker": "AAPL",
+    "model_name": "xgboost",
+    "as_of_date": "2026-05-22 00:00:00",
+    "prediction": 1,
+    "prob_up": 0.6176891922950745,
+    "signal": 1
+  },
+  {
+    "ticker": "AAPL",
+    "model_name": "lstm",
+    "as_of_date": "2026-05-22 00:00:00",
+    "prediction": 1,
+    "prob_up": 0.639611542224884,
+    "signal": 1
+  }
+]

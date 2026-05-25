@@ -186,10 +186,10 @@ export default function HomePage() {
     async function loadData() {
       try {
         const [summaryRes, benchmarksRes, signalsRes, crossValidationRes] = await Promise.all([
-          fetch("/api/demo/summary"),
-          fetch("/api/demo/benchmarks"),
-          fetch("/api/demo/live-signals"),
-          fetch("/api/demo/cross-validation")
+          fetch("/demo/aapl_xgboost_summary.json"),
+          fetch("/demo/aapl_xgboost_benchmarks.json"),
+          fetch("/demo/aapl_latest_signals.json"),
+          fetch("/demo/aapl_xgboost_cross_validation.json")
         ]);
 
         if (summaryRes.ok) {

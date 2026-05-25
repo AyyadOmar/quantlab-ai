@@ -1,0 +1,23 @@
+{
+  "buy_and_hold": {
+    "total_return": 1.1106937499087626,
+    "max_drawdown": -0.33433709566004,
+    "sharpe_ratio": 0.975830328818901,
+    "win_rate": 0.5408653846153846,
+    "trade_count": 832
+  },
+  "always_long": {
+    "total_return": 0.39268467616292435,
+    "max_drawdown": -0.3570537686324431,
+    "sharpe_ratio": 0.48117786708381194,
+    "win_rate": 0.5264423076923077,
+    "trade_count": 832
+  },
+  "momentum": {
+    "total_return": 0.21659099584391495,
+    "max_drawdown": -0.24337589752178523,
+    "sharpe_ratio": 0.3757498088892259,
+    "win_rate": 0.29086538461538464,
+    "trade_count": 450
+  }
+}
