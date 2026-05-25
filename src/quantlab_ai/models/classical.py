@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import FunctionTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
@@ -20,6 +21,10 @@ try:
     from xgboost import XGBClassifier
 except ImportError:  # pragma: no cover
     XGBClassifier = None
+
+
+def clip_extreme_values(values: np.ndarray) -> np.ndarray:
+    return np.clip(values, -10.0, 10.0)
 
 
 @dataclass
@@ -71,10 +76,18 @@ class ClassicalModelTrainer(PredictiveModel):
                     ("imputer", SimpleImputer(strategy="median")),
                     ("scaler", StandardScaler()),
                     (
+                        "clipper",
+                        FunctionTransformer(
+                            clip_extreme_values,
+                            validate=False,
+                        ),
+                    ),
+                    (
                         "classifier",
                         LogisticRegression(
                             max_iter=1000,
                             solver="liblinear",
+                            C=0.1,
                             random_state=self.settings.random_state,
                         ),
                     ),
