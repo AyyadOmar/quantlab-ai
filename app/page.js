@@ -137,6 +137,7 @@ const defaultBatchLeaderboard = {
     experiment_count: 3,
     failure_count: 0,
     mean_strategy_return: 2.7460104831809104,
+    median_strategy_return: 0.2003229924190757,
     mean_sharpe_ratio: 0.9270887090542324,
     mean_cv_accuracy: 0.5012019230769231,
     mean_cv_roc_auc: 0.5072337687228755
@@ -212,6 +213,17 @@ function pct(value) {
 
 function ratio(value) {
   return value.toFixed(2);
+}
+
+function median(values) {
+  if (!values.length) {
+    return 0;
+  }
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[middle - 1] + sorted[middle]) / 2
+    : sorted[middle];
 }
 
 function cls(value) {
@@ -323,6 +335,13 @@ export default function HomePage() {
       })),
     [batchLeaderboard]
   );
+  const medianStrategyReturn = useMemo(() => {
+    const fromAggregate = batchLeaderboard.aggregate.median_strategy_return;
+    if (typeof fromAggregate === "number") {
+      return fromAggregate;
+    }
+    return median(batchLeaderboard.experiments.map((experiment) => experiment.strategy_return));
+  }, [batchLeaderboard]);
 
   return (
     <main className="page-shell">
@@ -468,7 +487,7 @@ export default function HomePage() {
         </div>
         <div className="metric-grid validation-grid">
           <MetricCard label="Completed Tickers" value={String(batchLeaderboard.aggregate.experiment_count)} />
-          <MetricCard label="Mean Strategy Return" value={pct(batchLeaderboard.aggregate.mean_strategy_return)} tone={cls(batchLeaderboard.aggregate.mean_strategy_return)} />
+          <MetricCard label="Median Strategy Return" value={pct(medianStrategyReturn)} tone={cls(medianStrategyReturn)} />
           <MetricCard label="Mean CV Accuracy" value={pct(batchLeaderboard.aggregate.mean_cv_accuracy)} />
           <MetricCard label="Mean CV ROC-AUC" value={ratio(batchLeaderboard.aggregate.mean_cv_roc_auc)} />
         </div>
