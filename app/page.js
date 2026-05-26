@@ -474,6 +474,11 @@ export default function HomePage() {
             </tbody>
           </table>
         </div>
+        <p className="section-note">
+          Feature expansion improved some steadier names such as AAPL and MSFT, while reducing the earlier
+          outsized NVDA result. That is a healthy sign: the new basket appears less driven by one extreme
+          regime-sensitive winner, even though overall predictive quality remains only modestly above random.
+        </p>
       </section>
 
       <section className="section-stack">
@@ -647,6 +652,19 @@ Artifacts         ->  Committed demo assets + JSON`}</pre>
           </div>
         </div>
       ) : null}
+
+      <div className="floating-repo-badge">
+        <span className="repo-badge-label">QuantLab AI v0.1</span>
+        <a
+          className="repo-badge-link"
+          href="https://github.com/AyyadOmar/quantlab-ai"
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Open QuantLab AI GitHub repository"
+        >
+          <GitHubIcon />
+        </a>
+      </div>
     </main>
   );
 }
@@ -682,5 +700,16 @@ function VisualCard({ src, alt, title, onOpen }) {
         Expand Chart
       </button>
     </article>
+  );
+}
+
+function GitHubIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M12 2C6.477 2 2 6.589 2 12.248c0 4.526 2.865 8.367 6.839 9.722.5.095.682-.223.682-.495 0-.244-.009-.891-.014-1.748-2.782.62-3.369-1.37-3.369-1.37-.455-1.183-1.11-1.498-1.11-1.498-.908-.636.069-.623.069-.623 1.004.072 1.532 1.056 1.532 1.056.892 1.566 2.341 1.114 2.91.852.091-.664.349-1.114.635-1.37-2.221-.26-4.555-1.14-4.555-5.073 0-1.121.39-2.038 1.029-2.757-.103-.26-.446-1.307.098-2.724 0 0 .84-.276 2.75 1.053A9.303 9.303 0 0 1 12 6.836c.85.004 1.705.118 2.504.346 1.909-1.329 2.748-1.053 2.748-1.053.546 1.417.202 2.464.1 2.724.64.719 1.027 1.636 1.027 2.757 0 3.943-2.338 4.81-4.566 5.066.359.318.679.944.679 1.903 0 1.374-.012 2.481-.012 2.818 0 .275.18.595.688.494C19.138 20.612 22 16.772 22 12.248 22 6.589 17.523 2 12 2Z"
+      />
+    </svg>
   );
 }
