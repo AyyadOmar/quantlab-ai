@@ -16,6 +16,7 @@ QuantLab AI is built around a simple idea: classification signal and tradable ed
 
 - Downloads historical equity data with `yfinance`
 - Builds technical features such as moving averages, RSI, volatility, momentum, returns, and volume signals
+- Expands the feature space with MACD, Bollinger Bands, ATR, and OBV-derived signals
 - Adds market-context features from `SPY`, including relative strength, rolling beta, and rolling correlation
 - Trains multiple models:
   - Logistic Regression
@@ -24,6 +25,8 @@ QuantLab AI is built around a simple idea: classification signal and tradable ed
   - PyTorch LSTM
 - Converts model probabilities into trading signals
 - Evaluates strategies with expanding-window walk-forward validation
+- Tunes probability thresholds before final backtesting
+- Runs cross-ticker batch studies for multi-asset comparison
 - Backtests signals against benchmark strategies:
   - buy-and-hold
   - always-long exposure
@@ -98,6 +101,10 @@ flowchart TD
 - intraday range
 - overnight gap
 - volume ratio versus rolling average
+- MACD line, signal, and histogram
+- Bollinger Band width and percent-B
+- Normalized 14-day ATR
+- 20-day OBV z-score
 
 ### Market-context features
 
@@ -130,7 +137,7 @@ pip install -r requirements.txt
 PYTHONPATH=src python3 -m quantlab_ai.cli run \
   --ticker AAPL \
   --start 2018-01-01 \
-  --end 2024-12-31 \
+  --end 2026-05-25 \
   --model xgboost
 ```
 
@@ -140,11 +147,21 @@ PYTHONPATH=src python3 -m quantlab_ai.cli run \
 PYTHONPATH=src python3 -m quantlab_ai.cli run \
   --ticker AAPL \
   --start 2018-01-01 \
-  --end 2024-12-31 \
+  --end 2026-05-25 \
   --model lstm
 ```
 
-### 4. Run the Vercel-style web demo locally
+### 4. Run a cross-ticker batch study
+
+```bash
+PYTHONPATH=src python3 -m quantlab_ai.cli run-batch \
+  --tickers AAPL MSFT NVDA SPY QQQ \
+  --start 2018-01-01 \
+  --end 2026-05-25 \
+  --model xgboost
+```
+
+### 5. Run the Vercel-style web demo locally
 
 ```bash
 npm install
@@ -166,40 +183,48 @@ The public-facing demo is now structured as a `Next.js` frontend with lightweigh
 
 ## Latest Public Benchmark Snapshot
 
-The latest benchmark below reflects the upgraded evaluation setup: expanding-window walk-forward validation plus baseline comparison. This is a more realistic measure of signal quality than the earlier single-split experiments.
+The latest public results reflect the upgraded evaluation stack: expanding-window walk-forward validation, threshold tuning, multi-ticker comparison, and benchmark-aware backtesting.
 
 ## Model Classification Metrics
 
-The table below summarizes fold-averaged out-of-sample classification quality from walk-forward validation for the latest published `AAPL` XGBoost experiment.
+The table below summarizes fold-averaged out-of-sample classification quality from the current five-ticker `XGBoost` basket after feature expansion.
 
-| Model | Mean Accuracy | Mean Precision | Mean Recall | Mean F1 | Mean ROC-AUC | Folds |
+| Ticker | Mean Accuracy | Mean Precision | Mean Recall | Mean F1 | Mean ROC-AUC | Best Threshold |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| XGBoost | `0.481` | `0.542` | `0.372` | `0.419` | `0.504` | `4` |
+| `AAPL` | `0.488` | `0.544` | `0.380` | `0.442` | `0.484` | `0.55` |
+| `MSFT` | `0.516` | `0.560` | `0.476` | `0.505` | `0.525` | `0.60` |
+| `NVDA` | `0.502` | `0.578` | `0.366` | `0.442` | `0.529` | `0.50` |
+| `SPY` | `0.507` | `0.600` | `0.448` | `0.486` | `0.514` | `0.50` |
+| `QQQ` | `0.499` | `0.598` | `0.462` | `0.468` | `0.488` | `0.60` |
+| **Basket Mean** | **`0.502`** | **`0.576`** | **`0.426`** | **`0.469`** | **`0.508`** | — |
 
-### AAPL walk-forward XGBoost results
+## Cross-Ticker XGBoost Results
 
-| Metric | Strategy | Buy & Hold | Always Long | Momentum |
-| --- | ---: | ---: | ---: | ---: |
-| Total return | `-36.87%` | `+48.17%` | `+4.63%` | `-11.61%` |
-| Max drawdown | `-43.87%` | `-30.14%` | `-36.61%` | `-35.09%` |
-| Sharpe ratio | `-1.02` | `0.63` | `0.16` | `-0.20` |
-| Win rate | `45.35%` | `53.74%` | `52.44%` | `28.30%` |
-| Trade count | `172` | `696` | `696` | `374` |
+| Ticker | Strategy Return | Buy & Hold | Sharpe Ratio | Max Drawdown | Trades |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `AAPL` | `+12.99%` | `+111.07%` | `0.26` | `-21.11%` | `252` |
+| `MSFT` | `+38.03%` | `+74.60%` | `0.63` | `-28.71%` | `252` |
+| `NVDA` | `+452.28%` | `+1058.34%` | `1.62` | `-21.80%` | `291` |
+| `SPY` | `+30.54%` | `+84.37%` | `0.69` | `-12.90%` | `354` |
+| `QQQ` | `+20.48%` | `+144.28%` | `0.50` | `-15.78%` | `257` |
+| **Basket Mean** | **`+110.86%`** | — | **`0.74`** | — | — |
+
+The arithmetic mean return is heavily influenced by `NVDA`, so the website uses median strategy return for a more stable cross-ticker summary.
 
 ## Key Findings
 
-- Walk-forward validation materially reduced the apparent performance of the baseline models, which is exactly why time-aware evaluation matters.
-- The current `xgboost` strategy beats the naive momentum rule, but still fails to outperform passive exposure.
-- Adding market-context features improves the realism of the feature space and creates a stronger foundation for future iteration.
-- The project is most compelling as a quantitative research system that identifies weaknesses honestly, not as a claim of market-beating performance.
+- Feature expansion improved the public `XGBoost` basket modestly: mean walk-forward accuracy moved above `50%`, and mean ROC-AUC improved to roughly `0.508`.
+- Signal quality remains weak to moderate overall, which is exactly why the project emphasizes honest validation over headline returns.
+- Cross-ticker results are heterogeneous: `MSFT` and `SPY` look relatively stable, `AAPL` remains weak, and `NVDA` contributes disproportionately to average returns.
+- The strategy still generally trails passive exposure across names, reinforcing the core lesson that predictive signal and tradable alpha are not the same thing.
 
 ## Research Lessons
 
-- Walk-forward validation exposed substantial performance decay relative to earlier single-split experiments.
-- Small predictive signal was not enough to create robust trading performance after repeated out-of-sample testing.
-- Benchmark comparisons were essential because raw model outputs looked more promising than the resulting tradable strategy.
-- Market-context features such as relative strength and rolling beta create a more realistic research setup than stock-only technical indicators.
-- Model complexity alone did not solve the problem; validation design and signal robustness mattered more.
+- Walk-forward validation exposed substantial performance decay relative to earlier single-split experiments and prevented overclaiming.
+- Feature engineering mattered more than swapping in more complex models blindly; the indicator expansion helped more than threshold changes alone.
+- Benchmark comparisons were essential because some individual backtests looked attractive even when classification quality stayed close to random.
+- Multi-ticker evaluation showed that whatever signal exists is highly asset-dependent and likely regime-sensitive.
+- This is a stronger research platform because it surfaces those weaknesses transparently instead of hiding them.
 
 ## Visuals
 
@@ -207,13 +232,13 @@ The table below summarizes fold-averaged out-of-sample classification quality fr
 
 ![AAPL XGBoost Equity Curve](docs/assets/aapl_xgboost_equity_curve.png)
 
-### Random Forest confusion matrix
+### XGBoost probability distribution
 
-![AAPL Random Forest Confusion Matrix](docs/assets/aapl_random_forest_confusion_matrix.png)
+![AAPL XGBoost Probability Distribution](docs/assets/aapl_xgboost_probabilities.png)
 
-### LSTM equity curve
+### XGBoost confusion matrix
 
-![AAPL LSTM Equity Curve](docs/assets/aapl_lstm_equity_curve.png)
+![AAPL XGBoost Confusion Matrix](docs/assets/aapl_xgboost_confusion_matrix.png)
 
 ### AAPL candlestick chart
 
@@ -221,9 +246,9 @@ The table below summarizes fold-averaged out-of-sample classification quality fr
 
 ## Roadmap
 
-- Add threshold tuning and position filters to reduce overtrading
-- Expand the feature set with MACD, Bollinger Bands, ATR, and OBV
-- Extend experiments across multiple equities, ETFs, and sectors
+- Add feature ablations comparing technical-only, market-context-only, and combined feature sets
+- Extend experiments across more equities, sectors, and regime buckets
+- Add realistic slippage assumptions alongside existing transaction costs
 - Add unit tests for indicators, validation logic, and backtesting correctness
 - Expose latest predictions through a lightweight API
 - Add GitHub Actions and Docker for reproducibility
