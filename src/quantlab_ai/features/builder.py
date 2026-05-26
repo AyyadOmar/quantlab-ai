@@ -38,6 +38,7 @@ class FeatureBuilder:
         engineered = self._prepare_features(raw_data, context_data)
         engineered["target"] = (engineered["close"].shift(-1) > engineered["close"]).astype(int)
         engineered["next_day_return"] = engineered["close"].shift(-1) / engineered["close"] - 1
+        engineered = self._ensure_feature_columns(engineered)
         engineered[FEATURE_COLUMNS] = engineered[FEATURE_COLUMNS].replace([np.inf, -np.inf], np.nan)
         engineered = engineered.dropna().reset_index(drop=True)
 
@@ -51,6 +52,7 @@ class FeatureBuilder:
         context_data: pd.DataFrame | None = None,
     ) -> pd.DataFrame:
         engineered = self._prepare_features(raw_data, context_data)
+        engineered = self._ensure_feature_columns(engineered)
         engineered[FEATURE_COLUMNS] = engineered[FEATURE_COLUMNS].replace([np.inf, -np.inf], np.nan)
         engineered = engineered.dropna(subset=FEATURE_COLUMNS).reset_index(drop=True)
         return engineered
@@ -59,6 +61,8 @@ class FeatureBuilder:
         engineered = TechnicalIndicatorFactory.add_indicators(raw_data)
         if context_data is not None:
             engineered = self._merge_market_context(engineered, context_data)
+        else:
+            engineered = self._add_self_market_context(engineered)
         return engineered
 
     def _merge_market_context(self, asset_data: pd.DataFrame, context_data: pd.DataFrame) -> pd.DataFrame:
@@ -76,6 +80,29 @@ class FeatureBuilder:
         )
         merged["rolling_correlation_20"] = merged["return_1d"].rolling(window=20).corr(merged["market_return_1d"])
         return merged
+
+    def _add_self_market_context(self, asset_data: pd.DataFrame) -> pd.DataFrame:
+        data = asset_data.copy()
+        data["market_return_1d"] = data["return_1d"]
+        data["market_return_5d"] = data["return_5d"]
+        data["relative_strength_5d"] = 0.0
+        data["rolling_beta_20"] = 1.0
+        data["rolling_correlation_20"] = 1.0
+        return data
+
+    def _ensure_feature_columns(self, frame: pd.DataFrame) -> pd.DataFrame:
+        data = frame.copy()
+        default_columns = {
+            "market_return_1d": data.get("return_1d", pd.Series(0.0, index=data.index)),
+            "market_return_5d": data.get("return_5d", pd.Series(0.0, index=data.index)),
+            "relative_strength_5d": pd.Series(0.0, index=data.index),
+            "rolling_beta_20": pd.Series(1.0, index=data.index),
+            "rolling_correlation_20": pd.Series(1.0, index=data.index),
+        }
+        for column, default_value in default_columns.items():
+            if column not in data.columns:
+                data[column] = default_value
+        return data
 
     @staticmethod
     def _rolling_beta(asset_returns: pd.Series, market_returns: pd.Series, window: int) -> pd.Series:

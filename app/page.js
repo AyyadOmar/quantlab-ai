@@ -128,6 +128,84 @@ const defaultCrossValidation = {
   }
 };
 
+const defaultBatchLeaderboard = {
+  aggregate: {
+    model_name: "xgboost",
+    tickers: ["AAPL", "MSFT", "NVDA"],
+    start_date: "2018-01-01",
+    end_date: "2026-05-25",
+    experiment_count: 3,
+    failure_count: 0,
+    mean_strategy_return: 2.7460104831809104,
+    mean_sharpe_ratio: 0.9270887090542324,
+    mean_cv_accuracy: 0.5012019230769231,
+    mean_cv_roc_auc: 0.5072337687228755
+  },
+  experiments: [
+    {
+      ticker: "AAPL",
+      model_name: "xgboost",
+      classification_accuracy: 0.46634615384615385,
+      classification_precision: 0.5115384615384615,
+      classification_recall: 0.4117647058823529,
+      classification_f1: 0.45626171875,
+      classification_roc_auc: 0.47836538461538464,
+      mean_cv_accuracy: 0.47716346153846156,
+      mean_cv_precision: 0.5183102737325996,
+      mean_cv_recall: 0.3699486963421979,
+      mean_cv_f1: 0.4295328994349372,
+      mean_cv_roc_auc: 0.4787961092656249,
+      best_threshold: 0.5,
+      strategy_return: 0.06335364713279512,
+      sharpe_ratio: 0.1335177431672168,
+      max_drawdown: -0.2195388144974485,
+      trade_count: 319,
+      buy_and_hold_return: 1.1106937499087626
+    },
+    {
+      ticker: "MSFT",
+      model_name: "xgboost",
+      classification_accuracy: 0.5144230769230769,
+      classification_precision: 0.51440329218107,
+      classification_recall: 0.5631067961165048,
+      classification_f1: 0.5376543209876543,
+      classification_roc_auc: 0.5216828478964401,
+      mean_cv_accuracy: 0.5132211538461539,
+      mean_cv_precision: 0.5476877651465799,
+      mean_cv_recall: 0.49139793041421415,
+      mean_cv_f1: 0.516010955706382,
+      mean_cv_roc_auc: 0.5136984027629816,
+      best_threshold: 0.65,
+      strategy_return: 0.2003229924190757,
+      sharpe_ratio: 0.41716966465571187,
+      max_drawdown: -0.1387822819765273,
+      trade_count: 183,
+      buy_and_hold_return: 0.745980729441563
+    },
+    {
+      ticker: "NVDA",
+      model_name: "xgboost",
+      classification_accuracy: 0.5721153846153846,
+      classification_precision: 0.6041666666666666,
+      classification_recall: 0.5272727272727272,
+      classification_f1: 0.5631067961165048,
+      classification_roc_auc: 0.5494434137291281,
+      mean_cv_accuracy: 0.5132211538461539,
+      mean_cv_precision: 0.5949317226890756,
+      mean_cv_recall: 0.3659504746461268,
+      mean_cv_f1: 0.4469487944072876,
+      mean_cv_roc_auc: 0.5292067941400201,
+      best_threshold: 0.5,
+      strategy_return: 7.97435480999086,
+      sharpe_ratio: 2.2305787193397686,
+      max_drawdown: -0.16528042969633527,
+      trade_count: 280,
+      buy_and_hold_return: 10.583389680263446
+    }
+  ],
+  failures: []
+};
+
 function pct(value) {
   return `${(value * 100).toFixed(2)}%`;
 }
@@ -180,16 +258,18 @@ export default function HomePage() {
   const [benchmarks, setBenchmarks] = useState(defaultBenchmarks);
   const [signals, setSignals] = useState(defaultSignals);
   const [crossValidation, setCrossValidation] = useState(defaultCrossValidation);
+  const [batchLeaderboard, setBatchLeaderboard] = useState(defaultBatchLeaderboard);
   const [activeVisual, setActiveVisual] = useState(null);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [summaryRes, benchmarksRes, signalsRes, crossValidationRes] = await Promise.all([
+        const [summaryRes, benchmarksRes, signalsRes, crossValidationRes, batchLeaderboardRes] = await Promise.all([
           fetch("/demo/aapl_xgboost_summary.json"),
           fetch("/demo/aapl_xgboost_benchmarks.json"),
           fetch("/demo/aapl_latest_signals.json"),
-          fetch("/demo/aapl_xgboost_cross_validation.json")
+          fetch("/demo/aapl_xgboost_cross_validation.json"),
+          fetch("/demo/batch_xgboost_leaderboard.json")
         ]);
 
         if (summaryRes.ok) {
@@ -203,6 +283,9 @@ export default function HomePage() {
         }
         if (crossValidationRes.ok) {
           setCrossValidation(await crossValidationRes.json());
+        }
+        if (batchLeaderboardRes.ok) {
+          setBatchLeaderboard(await batchLeaderboardRes.json());
         }
       } catch (_error) {
         // Keep baked-in demo fallbacks if the API is unavailable.
@@ -225,6 +308,20 @@ export default function HomePage() {
         rocAuc: ratio(fold.roc_auc)
       })),
     [crossValidation]
+  );
+  const batchRows = useMemo(
+    () =>
+      batchLeaderboard.experiments.map((experiment) => ({
+        ticker: experiment.ticker,
+        bestThreshold: experiment.best_threshold.toFixed(2),
+        strategyReturn: pct(experiment.strategy_return),
+        buyAndHoldReturn: pct(experiment.buy_and_hold_return),
+        sharpeRatio: ratio(experiment.sharpe_ratio),
+        cvAccuracy: pct(experiment.mean_cv_accuracy),
+        cvRocAuc: ratio(experiment.mean_cv_roc_auc),
+        tradeCount: experiment.trade_count
+      })),
+    [batchLeaderboard]
   );
 
   return (
@@ -352,6 +449,53 @@ export default function HomePage() {
                   <td>{row.maxDrawdown}</td>
                   <td>{row.sharpeRatio}</td>
                   <td>{row.winRate}</td>
+                  <td>{row.tradeCount}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="section-stack">
+        <div className="section-header">
+          <h2>Cross-Ticker Study</h2>
+          <p>
+            Current public XGBoost basket across {batchLeaderboard.aggregate.experiment_count} completed names:
+            {" "}
+            {batchLeaderboard.aggregate.tickers.join(", ")}.
+          </p>
+        </div>
+        <div className="metric-grid validation-grid">
+          <MetricCard label="Completed Tickers" value={String(batchLeaderboard.aggregate.experiment_count)} />
+          <MetricCard label="Mean Strategy Return" value={pct(batchLeaderboard.aggregate.mean_strategy_return)} tone={cls(batchLeaderboard.aggregate.mean_strategy_return)} />
+          <MetricCard label="Mean CV Accuracy" value={pct(batchLeaderboard.aggregate.mean_cv_accuracy)} />
+          <MetricCard label="Mean CV ROC-AUC" value={ratio(batchLeaderboard.aggregate.mean_cv_roc_auc)} />
+        </div>
+        <div className="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>Ticker</th>
+                <th>Best Threshold</th>
+                <th>Strategy Return</th>
+                <th>Buy & Hold</th>
+                <th>Sharpe Ratio</th>
+                <th>CV Accuracy</th>
+                <th>CV ROC-AUC</th>
+                <th>Trades</th>
+              </tr>
+            </thead>
+            <tbody>
+              {batchRows.map((row) => (
+                <tr key={row.ticker}>
+                  <td>{row.ticker}</td>
+                  <td>{row.bestThreshold}</td>
+                  <td>{row.strategyReturn}</td>
+                  <td>{row.buyAndHoldReturn}</td>
+                  <td>{row.sharpeRatio}</td>
+                  <td>{row.cvAccuracy}</td>
+                  <td>{row.cvRocAuc}</td>
                   <td>{row.tradeCount}</td>
                 </tr>
               ))}

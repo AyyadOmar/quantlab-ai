@@ -1,0 +1,81 @@
+{
+  "aggregate": {
+    "model_name": "xgboost",
+    "tickers": [
+      "AAPL",
+      "MSFT",
+      "NVDA"
+    ],
+    "start_date": "2018-01-01",
+    "end_date": "2026-05-25",
+    "experiment_count": 3,
+    "failure_count": 0,
+    "mean_strategy_return": 2.7460104831809104,
+    "mean_sharpe_ratio": 0.9270887090542324,
+    "mean_cv_accuracy": 0.5012019230769231,
+    "mean_cv_roc_auc": 0.5072337687228755
+  },
+  "experiments": [
+    {
+      "ticker": "AAPL",
+      "model_name": "xgboost",
+      "classification_accuracy": 0.46634615384615385,
+      "classification_precision": 0.5115384615384615,
+      "classification_recall": 0.4117647058823529,
+      "classification_f1": 0.45626171875,
+      "classification_roc_auc": 0.47836538461538464,
+      "mean_cv_accuracy": 0.47716346153846156,
+      "mean_cv_precision": 0.5183102737325996,
+      "mean_cv_recall": 0.3699486963421979,
+      "mean_cv_f1": 0.4295328994349372,
+      "mean_cv_roc_auc": 0.4787961092656249,
+      "best_threshold": 0.5,
+      "strategy_return": 0.06335364713279512,
+      "sharpe_ratio": 0.1335177431672168,
+      "max_drawdown": -0.2195388144974485,
+      "trade_count": 319,
+      "buy_and_hold_return": 1.1106937499087626
+    },
+    {
+      "ticker": "MSFT",
+      "model_name": "xgboost",
+      "classification_accuracy": 0.5144230769230769,
+      "classification_precision": 0.51440329218107,
+      "classification_recall": 0.5631067961165048,
+      "classification_f1": 0.5376543209876543,
+      "classification_roc_auc": 0.5216828478964401,
+      "mean_cv_accuracy": 0.5132211538461539,
+      "mean_cv_precision": 0.5476877651465799,
+      "mean_cv_recall": 0.49139793041421415,
+      "mean_cv_f1": 0.516010955706382,
+      "mean_cv_roc_auc": 0.5136984027629816,
+      "best_threshold": 0.65,
+      "strategy_return": 0.2003229924190757,
+      "sharpe_ratio": 0.41716966465571187,
+      "max_drawdown": -0.1387822819765273,
+      "trade_count": 183,
+      "buy_and_hold_return": 0.745980729441563
+    },
+    {
+      "ticker": "NVDA",
+      "model_name": "xgboost",
+      "classification_accuracy": 0.5721153846153846,
+      "classification_precision": 0.6041666666666666,
+      "classification_recall": 0.5272727272727272,
+      "classification_f1": 0.5631067961165048,
+      "classification_roc_auc": 0.5494434137291281,
+      "mean_cv_accuracy": 0.5132211538461539,
+      "mean_cv_precision": 0.5949317226890756,
+      "mean_cv_recall": 0.3659504746461268,
+      "mean_cv_f1": 0.4469487944072876,
+      "mean_cv_roc_auc": 0.5292067941400201,
+      "best_threshold": 0.5,
+      "strategy_return": 7.97435480999086,
+      "sharpe_ratio": 2.2305787193397686,
+      "max_drawdown": -0.16528042969633527,
+      "trade_count": 280,
+      "buy_and_hold_return": 10.583389680263446
+    }
+  ],
+  "failures": []
+}

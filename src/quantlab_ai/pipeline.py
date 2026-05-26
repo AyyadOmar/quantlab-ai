@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import date, timedelta
+from statistics import mean
 
 from .backtesting.engine import BacktestEngine
 from .config import Settings
@@ -29,12 +30,7 @@ class PipelineRunner:
         self.repository.initialize()
 
     def run(self, ticker: str, start_date: str, end_date: str, model_name: str) -> dict:
-        raw_data = self.loader.download(ticker, start_date, end_date)
-        self.loader.cache_to_csv(ticker, raw_data)
-        context_data = None
-        if ticker != self.settings.market_context_ticker:
-            context_data = self.loader.download(self.settings.market_context_ticker, start_date, end_date)
-            self.loader.cache_to_csv(self.settings.market_context_ticker, context_data)
+        raw_data, context_data = self._load_market_and_context(ticker, start_date, end_date)
         features = self.builder.build(raw_data, ticker, context_data=context_data)
 
         if model_name == "lstm":
@@ -43,7 +39,14 @@ class PipelineRunner:
             trainer = ClassicalModelTrainer(self.settings, model_name=model_name)
 
         artifacts = trainer.train(features)
-        backtest = self.backtester.run(artifacts.predictions, artifacts.model_name, ticker)
+        threshold_report = self.backtester.evaluate_thresholds(artifacts.predictions, artifacts.model_name, ticker)
+        best_threshold = float(threshold_report["best_threshold"]["threshold"])
+        backtest = self.backtester.run_with_threshold(
+            artifacts.predictions,
+            artifacts.model_name,
+            ticker,
+            threshold=best_threshold,
+        )
 
         self.plot_service.plot_candlestick(raw_data, ticker)
         self.plot_service.plot_equity_curve(backtest.equity_curve, ticker, artifacts.model_name)
@@ -60,6 +63,7 @@ class PipelineRunner:
         combined_metrics = {
             "classification": artifacts.metrics,
             "cross_validation": artifacts.cross_validation,
+            "threshold_sweep": threshold_report,
             "backtest": backtest.metrics,
             "benchmarks": backtest.benchmark_metrics,
         }
@@ -73,6 +77,75 @@ class PipelineRunner:
         )
         self.logger.info("Pipeline complete for %s with %s", ticker, artifacts.model_name)
         return combined_metrics
+
+    def run_batch(self, tickers: list[str], start_date: str, end_date: str, model_name: str) -> dict:
+        experiments: list[dict] = []
+        failures: list[dict] = []
+        for ticker in tickers:
+            self.logger.info("Starting batch experiment for %s with %s", ticker, model_name)
+            try:
+                metrics = self.run(
+                    ticker=ticker,
+                    start_date=start_date,
+                    end_date=end_date,
+                    model_name=model_name,
+                )
+            except Exception as error:  # noqa: BLE001
+                self.logger.exception("Batch experiment failed for %s with %s", ticker, model_name)
+                failures.append(
+                    {
+                        "ticker": ticker,
+                        "model_name": model_name,
+                        "error": str(error),
+                    }
+                )
+                continue
+
+            experiments.append(
+                {
+                    "ticker": ticker,
+                    "model_name": model_name,
+                    "classification_accuracy": float(metrics["classification"]["accuracy"]),
+                    "classification_precision": float(metrics["classification"]["precision"]),
+                    "classification_recall": float(metrics["classification"]["recall"]),
+                    "classification_f1": float(metrics["classification"]["f1"]),
+                    "classification_roc_auc": float(metrics["classification"]["roc_auc"]),
+                    "mean_cv_accuracy": float(metrics["cross_validation"]["summary"]["mean_accuracy"]),
+                    "mean_cv_precision": float(metrics["cross_validation"]["summary"]["mean_precision"]),
+                    "mean_cv_recall": float(metrics["cross_validation"]["summary"]["mean_recall"]),
+                    "mean_cv_f1": float(metrics["cross_validation"]["summary"]["mean_f1"]),
+                    "mean_cv_roc_auc": float(metrics["cross_validation"]["summary"]["mean_roc_auc"]),
+                    "best_threshold": float(metrics["threshold_sweep"]["best_threshold"]["threshold"]),
+                    "strategy_return": float(metrics["backtest"]["total_return"]),
+                    "sharpe_ratio": float(metrics["backtest"]["sharpe_ratio"]),
+                    "max_drawdown": float(metrics["backtest"]["max_drawdown"]),
+                    "trade_count": int(metrics["backtest"]["trade_count"]),
+                    "buy_and_hold_return": float(metrics["benchmarks"]["buy_and_hold"]["total_return"]),
+                }
+            )
+
+        aggregate = {
+            "model_name": model_name,
+            "tickers": tickers,
+            "start_date": start_date,
+            "end_date": end_date,
+            "experiment_count": len(experiments),
+            "failure_count": len(failures),
+            "mean_strategy_return": float(mean([row["strategy_return"] for row in experiments])) if experiments else 0.0,
+            "mean_sharpe_ratio": float(mean([row["sharpe_ratio"] for row in experiments])) if experiments else 0.0,
+            "mean_cv_accuracy": float(mean([row["mean_cv_accuracy"] for row in experiments])) if experiments else 0.0,
+            "mean_cv_roc_auc": float(mean([row["mean_cv_roc_auc"] for row in experiments])) if experiments else 0.0,
+        }
+
+        report = {
+            "aggregate": aggregate,
+            "experiments": experiments,
+            "failures": failures,
+        }
+
+        report_path = self.settings.backtests_dir / f"batch_{model_name}_leaderboard.json"
+        report_path.write_text(json.dumps(report, indent=2))
+        return report
 
     def predict_latest(self, ticker: str, start_date: str, end_date: str, model_name: str) -> list[dict]:
         raw_data, context_data = self._load_market_and_context(ticker, start_date, end_date)
