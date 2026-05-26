@@ -15,6 +15,7 @@ class BacktestResult:
     equity_curve: pd.DataFrame
     metrics: dict
     benchmark_metrics: dict
+    threshold_report: dict | None = None
 
 
 @dataclass
@@ -22,8 +23,27 @@ class BacktestEngine:
     settings: Settings
 
     def run(self, predictions: pd.DataFrame, model_name: str, ticker: str) -> BacktestResult:
+        return self.run_with_threshold(
+            predictions=predictions,
+            model_name=model_name,
+            ticker=ticker,
+            threshold=None,
+        )
+
+    def run_with_threshold(
+        self,
+        predictions: pd.DataFrame,
+        model_name: str,
+        ticker: str,
+        threshold: float | None,
+        persist_outputs: bool = True,
+    ) -> BacktestResult:
         frame = predictions.copy().reset_index(drop=True)
         fee_rate = self.settings.trading_fee_bps / 10_000
+
+        active_threshold = self.settings.signal_threshold if threshold is None else threshold
+        if "prob_up" in frame.columns:
+            frame["signal"] = (frame["prob_up"] >= active_threshold).astype(int)
 
         frame["strategy_return"] = np.where(frame["signal"] == 1, frame["next_day_return"] - fee_rate, 0.0)
         frame["equity_curve"] = (1 + frame["strategy_return"]).cumprod()
@@ -42,6 +62,7 @@ class BacktestEngine:
 
         trades = frame.loc[frame["signal"] == 1, ["date", "close", "prob_up", "next_day_return", "strategy_return"]].copy()
         metrics = self._metrics(frame)
+        metrics["threshold"] = float(active_threshold)
         benchmark_metrics = {
             "buy_and_hold": self._curve_metrics(frame["next_day_return"].fillna(0.0), signal_count=len(frame)),
             "always_long": self._curve_metrics(frame["always_long_return"], signal_count=len(frame)),
@@ -52,12 +73,13 @@ class BacktestEngine:
         }
         metrics["benchmark_return"] = benchmark_metrics["buy_and_hold"]["total_return"]
 
-        trades_path = self.settings.backtests_dir / f"{ticker.lower()}_{model_name}_trades.csv"
-        summary_path = self.settings.backtests_dir / f"{ticker.lower()}_{model_name}_summary.json"
-        benchmark_path = self.settings.backtests_dir / f"{ticker.lower()}_{model_name}_benchmarks.json"
-        trades.to_csv(trades_path, index=False)
-        summary_path.write_text(json.dumps(metrics, indent=2))
-        benchmark_path.write_text(json.dumps(benchmark_metrics, indent=2))
+        if persist_outputs:
+            trades_path = self.settings.backtests_dir / f"{ticker.lower()}_{model_name}_trades.csv"
+            summary_path = self.settings.backtests_dir / f"{ticker.lower()}_{model_name}_summary.json"
+            benchmark_path = self.settings.backtests_dir / f"{ticker.lower()}_{model_name}_benchmarks.json"
+            trades.to_csv(trades_path, index=False)
+            summary_path.write_text(json.dumps(metrics, indent=2))
+            benchmark_path.write_text(json.dumps(benchmark_metrics, indent=2))
 
         return BacktestResult(
             trades=trades,
@@ -66,7 +88,46 @@ class BacktestEngine:
             ],
             metrics=metrics,
             benchmark_metrics=benchmark_metrics,
+            threshold_report=None,
         )
+
+    def evaluate_thresholds(self, predictions: pd.DataFrame, model_name: str, ticker: str) -> dict:
+        threshold_results: list[dict] = []
+
+        for threshold in self.settings.threshold_sweep:
+            result = self.run_with_threshold(
+                predictions=predictions,
+                model_name=model_name,
+                ticker=ticker,
+                threshold=threshold,
+                persist_outputs=False,
+            )
+            threshold_results.append(
+                {
+                    "threshold": float(threshold),
+                    "total_return": float(result.metrics["total_return"]),
+                    "max_drawdown": float(result.metrics["max_drawdown"]),
+                    "sharpe_ratio": float(result.metrics["sharpe_ratio"]),
+                    "win_rate": float(result.metrics["win_rate"]),
+                    "trade_count": int(result.metrics["trade_count"]),
+                }
+            )
+
+        ranked = sorted(
+            threshold_results,
+            key=lambda row: (row["sharpe_ratio"], row["total_return"], -row["max_drawdown"]),
+            reverse=True,
+        )
+        best = ranked[0]
+        report = {
+            "metric": "sharpe_ratio_then_total_return",
+            "thresholds": threshold_results,
+            "best_threshold": best,
+        }
+
+        report_path = self.settings.backtests_dir / f"{ticker.lower()}_{model_name}_threshold_sweep.json"
+        report_path.write_text(json.dumps(report, indent=2))
+        return report
 
     def _metrics(self, frame: pd.DataFrame) -> dict:
         returns = frame["strategy_return"].fillna(0.0)

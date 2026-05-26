@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Tuple
 
 
 @dataclass
@@ -17,6 +18,7 @@ class Settings:
     test_size: float = 0.2
     random_state: int = 42
     signal_threshold: float = 0.55
+    threshold_sweep: Tuple[float, ...] = (0.5, 0.55, 0.6, 0.65, 0.7)
     risk_free_rate: float = 0.01
     trading_fee_bps: float = 5.0
     market_context_ticker: str = "SPY"
