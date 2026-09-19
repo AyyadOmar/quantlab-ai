@@ -18,6 +18,10 @@ The next controlled experiment adds lagged sector, volatility and rate context p
 
 An exploratory test now uses reported earnings surprises and dated NVIDIA advance-call notices: [results](backtesting/earnings_study_v5/earnings_study.md), [sources and timing rules](docs/earnings_study.md). Yahoo surprise values are current snapshots, not verified historical vintages; this experiment does not promote a new default model.
 
+## Direction rules versus always-up
+
+Two historical experiments test validation-selected classification cutoffs and matched shared-company training. See the [cutoff results](backtesting/direction_study_v6/direction_study.md), [shared-model results](backtesting/pooled_direction_study_v7/pooled_direction_study.md), and [methodology and reproduction](docs/direction_study.md). These studies count every test day, keep future outcomes out of selection, and do not change the default models or public website results.
+
 ## Research Focus
 
 QuantLab AI is built around a simple idea: classification signal and tradable edge are not the same thing. A model can show some ability to predict next-day direction while still failing to produce a robust trading strategy after realistic temporal validation, turnover, and benchmark comparison. This project is designed to study that gap directly.
