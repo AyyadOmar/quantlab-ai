@@ -63,6 +63,13 @@ def build_parser() -> argparse.ArgumentParser:
     study_parser.add_argument("--tickers", nargs="+", default=["AAPL", "MSFT", "NVDA", "SPY", "QQQ"])
     study_parser.add_argument("--start", default="2018-01-01")
     study_parser.add_argument("--end", required=True)
+    direction_parser = subparsers.add_parser("direction-study", help="Test validation-selected direction cutoffs against always-up using cached prices")
+    direction_parser.add_argument("--tickers", nargs="+", default=["AAPL", "MSFT", "NVDA", "SPY", "QQQ"])
+    direction_parser.add_argument("--start", default="2018-01-01")
+    direction_parser.add_argument("--end", required=True)
+    pooled_parser = subparsers.add_parser("pooled-direction-study", help="Compare separate and shared-company models using matched cached dates")
+    pooled_parser.add_argument("--start", default="2018-01-01")
+    pooled_parser.add_argument("--end", required=True)
     context_parser = subparsers.add_parser("context-study", help="Compare cached market and earnings filing context")
     context_parser.add_argument("--tickers", nargs="+", default=["AAPL", "MSFT", "NVDA", "SPY", "QQQ"])
     context_parser.add_argument("--start", default="2018-01-01")
@@ -89,7 +96,15 @@ def main() -> None:
                         slippage_bps=getattr(args, "slippage_bps", 2.0))
     settings.ensure_directories()
 
-    if args.command == "earnings-study":
+    if args.command == "pooled-direction-study":
+        from .pooled_direction_study import run_pooled_direction_study
+        result = run_pooled_direction_study(settings, args.start, args.end)
+        print(json.dumps(result["aggregates"], indent=2))
+    elif args.command == "direction-study":
+        from .direction_study import run_direction_study
+        result = run_direction_study(settings, [ticker.upper() for ticker in args.tickers], args.start, args.end)
+        print(json.dumps(result["aggregates"], indent=2))
+    elif args.command == "earnings-study":
         from .earnings_study import run_earnings_study
         result = run_earnings_study(settings, args.start, args.end, allow_retrospective_snapshot=args.allow_retrospective_snapshot)
         print(json.dumps(result["coverage"], indent=2))

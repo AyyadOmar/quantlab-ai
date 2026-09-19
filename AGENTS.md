@@ -8,3 +8,5 @@ After completing work, include:
 - Whether the completed work is ready to appear on the website, what should be updated, and what evidence is still needed before claiming improved model performance.
 
 The user currently prefers public data sources. Keep historical exploratory results distinct from evidence gathered on previously untouched dates. Do not promise that a model will beat always-up or that higher accuracy implies better returns after costs.
+
+The user handles Git operations. Provide instructions but do not create branches, stage, commit, or push unless explicitly asked. Respect their chosen branch names (the current experiment uses `beat-always-up`).
