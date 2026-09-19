@@ -55,16 +55,62 @@ def build_parser() -> argparse.ArgumentParser:
     report_parser = subparsers.add_parser("report-live", help="Show live prediction accuracy summary")
     report_parser.add_argument("--ticker", help="Optional ticker filter")
 
+    baseline_parser = subparsers.add_parser("baseline", help="Compare logistic regression and XGBoost with simple baselines")
+    baseline_parser.add_argument("--tickers", nargs="+", default=["AAPL", "MSFT", "NVDA", "SPY", "QQQ"])
+    baseline_parser.add_argument("--start", default="2018-01-01")
+    baseline_parser.add_argument("--end", required=True)
+    study_parser = subparsers.add_parser("feature-study", help="Test relative features and regularization with validation-only selection")
+    study_parser.add_argument("--tickers", nargs="+", default=["AAPL", "MSFT", "NVDA", "SPY", "QQQ"])
+    study_parser.add_argument("--start", default="2018-01-01")
+    study_parser.add_argument("--end", required=True)
+    context_parser = subparsers.add_parser("context-study", help="Compare cached market and earnings filing context")
+    context_parser.add_argument("--tickers", nargs="+", default=["AAPL", "MSFT", "NVDA", "SPY", "QQQ"])
+    context_parser.add_argument("--start", default="2018-01-01")
+    context_parser.add_argument("--end", required=True)
+    earnings_parser = subparsers.add_parser("earnings-study", help="Exploratory public earnings-surprise and dated schedule comparison")
+    earnings_parser.add_argument("--start", default="2018-01-01")
+    earnings_parser.add_argument("--end", required=True)
+    earnings_parser.add_argument("--allow-retrospective-snapshot", action="store_true")
+    fetch_parser = subparsers.add_parser("fetch-context", help="Download public market and SEC context")
+    fetch_parser.add_argument("--start", default="2017-01-01")
+    fetch_parser.add_argument("--end", required=True)
+    for command_parser in [run_parser, batch_parser, baseline_parser, study_parser, context_parser]:
+        command_parser.add_argument("--cached", action="store_true", help="Use saved raw prices without network access")
+        command_parser.add_argument("--fee-bps", type=float, default=5.0, help="Fee per side in basis points")
+        command_parser.add_argument("--slippage-bps", type=float, default=2.0, help="Adverse fill slippage per side")
     return parser
 
 
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
-    settings = Settings()
+    settings = Settings(use_cached_data=getattr(args, "cached", False),
+                        trading_fee_bps=getattr(args, "fee_bps", 5.0),
+                        slippage_bps=getattr(args, "slippage_bps", 2.0))
     settings.ensure_directories()
 
-    if args.command == "run":
+    if args.command == "earnings-study":
+        from .earnings_study import run_earnings_study
+        result = run_earnings_study(settings, args.start, args.end, allow_retrospective_snapshot=args.allow_retrospective_snapshot)
+        print(json.dumps(result["coverage"], indent=2))
+    elif args.command == "fetch-context":
+        from .data.context import fetch_context
+        fetch_context(settings.project_root, args.start, args.end)
+    elif args.command == "context-study":
+        from .context_study import run_context_study
+        result = run_context_study(settings, [ticker.upper() for ticker in args.tickers], args.start, args.end)
+        print(json.dumps(result["paired_uncertainty"], indent=2))
+    elif args.command == "feature-study":
+        from .feature_study import run_feature_study
+        result = run_feature_study(settings, [ticker.upper() for ticker in args.tickers], args.start, args.end)
+        print(json.dumps(result["paired_uncertainty"], indent=2))
+    elif args.command == "baseline":
+        from .pipeline import PipelineRunner
+        result = PipelineRunner(settings).run_baselines([ticker.upper() for ticker in args.tickers], args.start, args.end)
+        print(json.dumps(result, indent=2))
+        if result["failures"]:
+            raise SystemExit(1)
+    elif args.command == "run":
         from .pipeline import PipelineRunner
 
         runner = PipelineRunner(settings=settings)

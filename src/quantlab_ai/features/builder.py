@@ -7,6 +7,7 @@ import pandas as pd
 
 from ..config import Settings
 from .indicators import TechnicalIndicatorFactory
+from .profiles import add_relative_features
 
 
 FEATURE_COLUMNS = [
@@ -43,11 +44,21 @@ class FeatureBuilder:
 
     def build(self, raw_data: pd.DataFrame, ticker: str, context_data: pd.DataFrame | None = None) -> pd.DataFrame:
         engineered = self._prepare_features(raw_data, context_data)
-        engineered["target"] = (engineered["close"].shift(-1) > engineered["close"]).astype(int)
-        engineered["next_day_return"] = engineered["close"].shift(-1) / engineered["close"] - 1
+        engineered["execution_date"] = engineered["date"].shift(-1)
+        engineered["entry_open"] = engineered["open"].shift(-1)
+        engineered["exit_close"] = engineered["close"].shift(-1)
+        engineered["next_day_return"] = engineered["exit_close"] / engineered["entry_open"] - 1
+        engineered["target"] = (engineered["next_day_return"] > 0).astype(int)
+        # Adjusted prices are used only for the passive total-return benchmark.
+        adjustment = engineered["adj_close"] / engineered["close"]
+        engineered["benchmark_entry"] = (engineered["open"] * adjustment).shift(-1)
+        engineered["benchmark_exit"] = engineered["adj_close"].shift(-1)
         engineered = self._ensure_feature_columns(engineered)
         engineered[FEATURE_COLUMNS] = engineered[FEATURE_COLUMNS].replace([np.inf, -np.inf], np.nan)
-        engineered = engineered.dropna().reset_index(drop=True)
+        engineered = engineered.dropna(subset=FEATURE_COLUMNS + [
+            "execution_date", "entry_open", "exit_close", "next_day_return",
+            "benchmark_entry", "benchmark_exit",
+        ]).reset_index(drop=True)
 
         output_path = self.settings.processed_data_dir / f"{ticker.lower()}_features.csv"
         engineered.to_csv(output_path, index=False)
@@ -65,12 +76,25 @@ class FeatureBuilder:
         return engineered
 
     def _prepare_features(self, raw_data: pd.DataFrame, context_data: pd.DataFrame | None = None) -> pd.DataFrame:
+        raw_data = self._validate_prices(raw_data)
         engineered = TechnicalIndicatorFactory.add_indicators(raw_data)
         if context_data is not None:
-            engineered = self._merge_market_context(engineered, context_data)
+            engineered = self._merge_market_context(engineered, self._validate_prices(context_data))
         else:
             engineered = self._add_self_market_context(engineered)
-        return engineered
+        return add_relative_features(engineered)
+
+    @staticmethod
+    def _validate_prices(frame: pd.DataFrame) -> pd.DataFrame:
+        data = frame.copy()
+        data["date"] = pd.to_datetime(data["date"])
+        if data["date"].isna().any() or data["date"].duplicated().any():
+            raise ValueError("Price dates must be present and unique.")
+        data = data.sort_values("date").reset_index(drop=True)
+        columns = ["open", "high", "low", "close", "adj_close"]
+        if not np.isfinite(data[columns].to_numpy()).all() or (data[columns] <= 0).any().any():
+            raise ValueError("OHLC and adjusted close must be finite and positive.")
+        return data
 
     def _merge_market_context(self, asset_data: pd.DataFrame, context_data: pd.DataFrame) -> pd.DataFrame:
         context = context_data[["date", "close"]].copy()

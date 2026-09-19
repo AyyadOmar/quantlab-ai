@@ -16,8 +16,6 @@ from .base import (
     ModelArtifacts,
     PredictiveModel,
     aggregate_classification_metrics,
-    build_cross_validation_report,
-    combine_fold_predictions,
 )
 from .registry import ModelRegistry
 
@@ -43,43 +41,15 @@ class LSTMTrainer(PredictiveModel):
     settings: Settings
 
     def __post_init__(self) -> None:
+        self.model_name = "lstm"
         self.registry = ModelRegistry(self.settings)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def train(self, features: pd.DataFrame) -> ModelArtifacts:
-        prediction_frames: list[pd.DataFrame] = []
-
-        for fold_index, (train_frame, test_frame) in enumerate(self.walk_forward_splits(features), start=1):
-            scaler = StandardScaler()
-            train_scaled = scaler.fit_transform(train_frame[FEATURE_COLUMNS])
-            test_scaled = scaler.transform(test_frame[FEATURE_COLUMNS])
-
-            x_train, y_train = self._create_sequences(train_scaled, train_frame["target"].to_numpy())
-            x_test, _ = self._create_sequences(test_scaled, test_frame["target"].to_numpy())
-
-            if len(x_train) == 0 or len(x_test) == 0:
-                continue
-
-            model = self._train_model(x_train, y_train)
-            probabilities, predictions = self._predict(model, x_test)
-
-            aligned_test = test_frame.iloc[self.settings.lstm_sequence_length - 1 :].copy().reset_index(drop=True)
-            aligned_test["prediction"] = predictions
-            aligned_test["prob_up"] = probabilities
-            aligned_test["signal"] = (aligned_test["prob_up"] >= self.settings.signal_threshold).astype(int)
-            aligned_test["fold"] = fold_index
-            prediction_frames.append(
-                aligned_test[["date", "close", "target", "next_day_return", "prediction", "prob_up", "signal", "fold"]]
-            )
-
-        predictions = combine_fold_predictions(prediction_frames)
+        predictions, cross_validation, threshold_report = self.evaluate_walk_forward(features)
         metrics = aggregate_classification_metrics(predictions)
-        cross_validation = build_cross_validation_report(predictions)
 
-        full_scaler = StandardScaler()
-        full_scaled = full_scaler.fit_transform(features[FEATURE_COLUMNS])
-        x_full, y_full = self._create_sequences(full_scaled, features["target"].to_numpy())
-        final_model = self._train_model(x_full, y_full)
+        final_model, full_scaler = self.last_evaluated_model
 
         artifact_path = self.registry.save_torch(
             artifact_name=f"lstm_{features['ticker'].iloc[0].lower()}",
@@ -88,6 +58,9 @@ class LSTMTrainer(PredictiveModel):
                 "scaler": full_scaler,
                 "feature_columns": FEATURE_COLUMNS,
                 "sequence_length": self.settings.lstm_sequence_length,
+                "protocol": self.settings.protocol,
+                "threshold": threshold_report["latest_validation_threshold"],
+                "trained_through": threshold_report["folds"][-1]["train"]["last_outcome_date"],
             },
         )
         return ModelArtifacts(
@@ -96,13 +69,11 @@ class LSTMTrainer(PredictiveModel):
             cross_validation=cross_validation,
             predictions=predictions,
             artifact_path=artifact_path,
+            threshold_report=threshold_report,
         )
 
     def predict_latest(self, training_features: pd.DataFrame, inference_features: pd.DataFrame) -> LatestPrediction:
-        scaler = StandardScaler()
-        training_scaled = scaler.fit_transform(training_features[FEATURE_COLUMNS])
-        x_train, y_train = self._create_sequences(training_scaled, training_features["target"].to_numpy())
-        model = self._train_model(x_train, y_train)
+        (model, scaler), threshold = self.fit_for_latest(training_features, inference_features)
 
         inference_scaled = scaler.transform(inference_features[FEATURE_COLUMNS])
         sequence_length = self.settings.lstm_sequence_length
@@ -118,6 +89,7 @@ class LSTMTrainer(PredictiveModel):
                 "scaler": scaler,
                 "feature_columns": FEATURE_COLUMNS,
                 "sequence_length": sequence_length,
+                "threshold": threshold, "protocol": self.settings.protocol,
             },
         )
         return LatestPrediction(
@@ -125,9 +97,27 @@ class LSTMTrainer(PredictiveModel):
             as_of_date=str(inference_features["date"].iloc[-1]),
             prediction=int(predictions[0]),
             prob_up=float(probabilities[0]),
-            signal=int(probabilities[0] >= self.settings.signal_threshold),
+            signal=int(probabilities[0] >= threshold),
             artifact_path=artifact_path,
         )
+
+    def fit_frame(self, frame: pd.DataFrame) -> tuple:
+        scaler = StandardScaler()
+        values = scaler.fit_transform(frame[FEATURE_COLUMNS])
+        x, y = self._create_sequences(values, frame["target"].to_numpy())
+        if not len(x):
+            raise ValueError("Insufficient training history for LSTM sequences.")
+        return self._train_model(x, y), scaler
+
+    def predict_frame(self, fitted: tuple, frame: pd.DataFrame, history: pd.DataFrame) -> np.ndarray:
+        model, scaler = fitted
+        # Carry preceding feature history into every window; no test labels are used.
+        prefix = history.loc[history["date"] < frame["date"].iloc[0]].tail(self.settings.lstm_sequence_length - 1)
+        values = scaler.transform(pd.concat([prefix, frame])[FEATURE_COLUMNS])
+        sequences, _ = self._create_sequences(values, np.zeros(len(values)))
+        if len(sequences) != len(frame):
+            raise ValueError("Insufficient history to cover every evaluation session.")
+        return self._predict(model, sequences)[0]
 
     def _create_sequences(self, x_values: np.ndarray, y_values: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         sequence_length = self.settings.lstm_sequence_length
@@ -139,6 +129,7 @@ class LSTMTrainer(PredictiveModel):
         return np.array(sequences), np.array(labels)
 
     def _train_model(self, x_train: np.ndarray, y_train: np.ndarray) -> LSTMClassifier:
+        torch.manual_seed(self.settings.random_state)
         model = LSTMClassifier(input_size=len(FEATURE_COLUMNS), hidden_size=self.settings.lstm_hidden_size).to(self.device)
         criterion = nn.BCEWithLogitsLoss()
         optimizer = torch.optim.Adam(model.parameters(), lr=self.settings.lstm_learning_rate)

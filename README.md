@@ -1,8 +1,22 @@
 # QuantLab AI
 
+> **Research update:** the Python pipeline now uses the corrected next-session open-to-close protocol with separate chronological validation and testing. Read [the protocol](docs/research_protocol.md) and [the new baseline report](backtesting/open_to_close_v2/baseline_comparison.md). The public demo snapshots and historical performance tables below describe the older close-to-close experiments.
+
 QuantLab AI is a production-style quantitative machine learning platform for equity research. It ingests market data, engineers technical and market-context features, trains multiple model families, and evaluates signal-driven strategies with walk-forward validation and benchmark-aware backtesting.
 
 This project is designed to feel closer to a junior quant research or ML engineering platform than a notebook demo. The goal is not to claim a magic stock predictor. The goal is to show realistic research workflow, disciplined evaluation, and strong software engineering structure.
+
+## Feature and regularization experiments
+
+The next experiment is complete: [results](backtesting/feature_study_v3/feature_study.md) and [reproduction instructions](docs/feature_study.md). It compares relative and compact feature sets with smaller, more regularized models using validation-only selection. The baseline remains reproducible; improvements still require confirmation on new dates.
+
+## Market and earnings context
+
+The next controlled experiment adds lagged sector, volatility and rate context plus past SEC earnings-related filing recency. See [the results](backtesting/context_study_v4/context_study.md) and [the data/availability rules](docs/context_study.md). The filing features do not include upcoming earnings dates or EPS surprises.
+
+## Public earnings-event experiments
+
+An exploratory test now uses reported earnings surprises and dated NVIDIA advance-call notices: [results](backtesting/earnings_study_v5/earnings_study.md), [sources and timing rules](docs/earnings_study.md). Yahoo surprise values are current snapshots, not verified historical vintages; this experiment does not promote a new default model.
 
 ## Research Focus
 

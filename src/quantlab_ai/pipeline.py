@@ -1,9 +1,16 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import platform
+from dataclasses import asdict
+from importlib.metadata import version
+
+import pandas as pd
 from dataclasses import dataclass
 from datetime import date, timedelta
 from statistics import mean
+from pathlib import Path
 
 from .backtesting.engine import BacktestEngine
 from .config import Settings
@@ -39,14 +46,11 @@ class PipelineRunner:
             trainer = ClassicalModelTrainer(self.settings, model_name=model_name)
 
         artifacts = trainer.train(features)
-        threshold_report = self.backtester.evaluate_thresholds(artifacts.predictions, artifacts.model_name, ticker)
-        best_threshold = float(threshold_report["best_threshold"]["threshold"])
-        backtest = self.backtester.run_with_threshold(
-            artifacts.predictions,
-            artifacts.model_name,
-            ticker,
-            threshold=best_threshold,
-        )
+        threshold_report = artifacts.threshold_report
+        backtest = self.backtester.run(artifacts.predictions, artifacts.model_name, ticker)
+        stem = f"{ticker.lower()}_{artifacts.model_name}"
+        artifacts.predictions.to_csv(self.settings.backtests_dir / f"{stem}_predictions.csv", index=False)
+        (self.settings.backtests_dir / f"{stem}_threshold_sweep.json").write_text(json.dumps(threshold_report, indent=2))
 
         self.plot_service.plot_candlestick(raw_data, ticker)
         self.plot_service.plot_equity_curve(backtest.equity_curve, ticker, artifacts.model_name)
@@ -61,12 +65,23 @@ class PipelineRunner:
         cross_validation_path.write_text(json.dumps(artifacts.cross_validation, indent=2))
 
         combined_metrics = {
+            "protocol": self.settings.protocol,
+            "target": "next_session_close > next_session_open",
+            "execution": "Signal after completed close; enter next open, exit that close; long or cash.",
+            "reproducibility": {
+                "settings": {key: str(value) if isinstance(value, Path) else value for key, value in asdict(self.settings).items()},
+                "raw_data_sha256": hashlib.sha256(raw_data.to_csv(index=False).encode()).hexdigest(),
+                "context_data_sha256": hashlib.sha256(context_data.to_csv(index=False).encode()).hexdigest() if context_data is not None else None,
+                "python": platform.python_version(),
+                "packages": {name: version(name) for name in ["numpy", "pandas", "scikit-learn", "xgboost", "torch"]},
+            },
             "classification": artifacts.metrics,
             "cross_validation": artifacts.cross_validation,
             "threshold_sweep": threshold_report,
             "backtest": backtest.metrics,
             "benchmarks": backtest.benchmark_metrics,
         }
+        (self.settings.backtests_dir / f"{stem}_experiment.json").write_text(json.dumps(combined_metrics, indent=2))
         self.repository.log_experiment(
             ticker=ticker,
             model_name=artifacts.model_name,
@@ -115,7 +130,7 @@ class PipelineRunner:
                     "mean_cv_recall": float(metrics["cross_validation"]["summary"]["mean_recall"]),
                     "mean_cv_f1": float(metrics["cross_validation"]["summary"]["mean_f1"]),
                     "mean_cv_roc_auc": float(metrics["cross_validation"]["summary"]["mean_roc_auc"]),
-                    "best_threshold": float(metrics["threshold_sweep"]["best_threshold"]["threshold"]),
+                    "latest_validation_threshold": float(metrics["threshold_sweep"]["latest_validation_threshold"]),
                     "strategy_return": float(metrics["backtest"]["total_return"]),
                     "sharpe_ratio": float(metrics["backtest"]["sharpe_ratio"]),
                     "max_drawdown": float(metrics["backtest"]["max_drawdown"]),
@@ -145,6 +160,55 @@ class PipelineRunner:
 
         report_path = self.settings.backtests_dir / f"batch_{model_name}_leaderboard.json"
         report_path.write_text(json.dumps(report, indent=2))
+        return report
+
+    def run_baselines(self, tickers: list[str], start_date: str, end_date: str) -> dict:
+        rows, failures = [], []
+        for ticker in tickers:
+            for model in ["logistic_regression", "xgboost"]:
+                try:
+                    result = self.run(ticker, start_date, end_date, model)
+                    classification = result["classification"]
+                    baselines = result["cross_validation"]["classification_baselines"]
+                    trading = result["backtest"]
+                    rows.append({"ticker": ticker, "model": model,
+                                 "accuracy": classification["accuracy"],
+                                 "always_up_accuracy": baselines["always_up"]["accuracy"],
+                                 "roc_auc": classification["roc_auc"],
+                                 "brier_score": classification["brier_score"],
+                                 "prevalence_brier_score": baselines["training_prevalence"]["brier_score"],
+                                 "log_loss": classification["log_loss"],
+                                 "strategy_return": trading["total_return"],
+                                 "always_long_return": result["benchmarks"]["always_long"]["total_return"],
+                                 "momentum_return": result["benchmarks"]["momentum"]["total_return"],
+                                 "buy_and_hold_return": result["benchmarks"]["buy_and_hold"]["total_return"],
+                                 "max_drawdown": trading["max_drawdown"],
+                                 "sharpe_ratio": trading["sharpe_ratio"],
+                                 "active_session_fraction": trading["active_session_fraction"],
+                                 "trade_count": trading["trade_count"],
+                                 "evaluation_sessions": trading["evaluation_sessions"],
+                                 "start_date": trading["start_date"], "end_date": trading["end_date"]})
+                except Exception as error:
+                    self.logger.exception("Baseline failed for %s %s", ticker, model)
+                    failures.append({"ticker": ticker, "model": model, "error": str(error)})
+        report = {"protocol": self.settings.protocol, "experiments": rows, "failures": failures}
+        (self.settings.backtests_dir / "baseline_comparison.json").write_text(json.dumps(report, indent=2))
+        pd.DataFrame(rows).to_csv(self.settings.backtests_dir / "baseline_comparison.csv", index=False)
+        lines = ["# Corrected baseline comparison", "",
+                 "Signal after close; next-session open-to-close long/cash trades. Thresholds selected on earlier validation only.", "",
+                 f"Costs per side: {self.settings.trading_fee_bps:g} bps fee + {self.settings.slippage_bps:g} bps slippage. Cash earns zero. Fixed model settings; no search on test results. These costs are assumptions, not measured fills.", "",
+                 "Historical walk-forward results are a research baseline, not an untouched prospective trial. The dates were used in earlier project research.", "",
+                 "Buy-and-hold includes overnight exposure and uses adjusted prices; always-long trades only open-to-close, matching the model's holding window. Returns are cumulative, not annualized.", "",
+                 "| Ticker | Model | Accuracy | Always up | AUC | Brier ↓ | Prior Brier ↓ | Net return | Always long | Momentum | Buy & hold | Max drawdown | Trades |", 
+                 "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+        for row in rows:
+            lines.append(f"| {row['ticker']} | {row['model']} | {row['accuracy']:.1%} | {row['always_up_accuracy']:.1%} | {row['roc_auc']:.3f} | {row['brier_score']:.3f} | {row['prevalence_brier_score']:.3f} | {row['strategy_return']:.1%} | {row['always_long_return']:.1%} | {row['momentum_return']:.1%} | {row['buy_and_hold_return']:.1%} | {row['max_drawdown']:.1%} | {row['trade_count']} |")
+        lines += ["", "Each experiment JSON records exact windows, costs, data hashes and package versions. Daily CSVs contain every signal and execution price. Brier and log loss measure probability quality; lower is better. Very few trades do not establish a reliable strategy."]
+        if rows:
+            lines += ["", f"Execution coverage: {rows[0]['start_date']} through {rows[0]['end_date']} ({rows[0]['evaluation_sessions']} sessions for the first experiment)."]
+        if failures:
+            lines += ["", "Failures: " + json.dumps(failures)]
+        (self.settings.backtests_dir / "baseline_comparison.md").write_text("\n".join(lines) + "\n")
         return report
 
     def predict_latest(self, ticker: str, start_date: str, end_date: str, model_name: str) -> list[dict]:
@@ -207,10 +271,10 @@ class PipelineRunner:
                 if index + 1 >= len(raw_data):
                     continue
 
-                current_close = float(raw_data.loc[index, "close"])
+                next_open = float(raw_data.loc[index + 1, "open"])
                 next_close = float(raw_data.loc[index + 1, "close"])
-                actual_direction = int(next_close > current_close)
-                actual_return = float(next_close / current_close - 1)
+                actual_direction = int(next_close > next_open)
+                actual_return = float(next_close / next_open - 1)
                 self.repository.resolve_live_prediction(
                     prediction_id=int(row["id"]),
                     actual_direction=actual_direction,
@@ -228,9 +292,11 @@ class PipelineRunner:
 
     def _load_market_and_context(self, ticker: str, start_date: str, end_date: str) -> tuple:
         raw_data = self.loader.download(ticker, start_date, end_date)
-        self.loader.cache_to_csv(ticker, raw_data)
+        if not self.settings.use_cached_data:
+            self.loader.cache_to_csv(ticker, raw_data)
         context_data = None
         if ticker != self.settings.market_context_ticker:
             context_data = self.loader.download(self.settings.market_context_ticker, start_date, end_date)
-            self.loader.cache_to_csv(self.settings.market_context_ticker, context_data)
+            if not self.settings.use_cached_data:
+                self.loader.cache_to_csv(self.settings.market_context_ticker, context_data)
         return raw_data, context_data

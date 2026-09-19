@@ -17,3 +17,17 @@ models/*.pt
 visualizations/*.png
 backtesting/*.csv
 backtesting/*.json
+
+# Versioned research outputs
+data/processed/**/*.csv
+models/**/*.joblib
+models/**/*.pt
+visualizations/**/*.png
+backtesting/**/*.csv
+backtesting/**/*.json
+
+# Downloaded public context snapshots
+data/context_v4/
+
+# Public earnings source snapshots
+data/earnings_v5/
