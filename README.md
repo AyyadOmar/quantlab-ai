@@ -24,6 +24,8 @@ Two historical experiments test validation-selected classification cutoffs and m
 
 ## Research website
 
+The latest [recent-history experiment](docs/recent_history_study.md) compares full, four-year and two-year training. The historical study did not beat always-up overall. On a separately frozen newer-period confirmation, selected logistic regression scored 51.85% versus 47.74%, with all ten additional correct predictions concentrated in NVIDIA. This remains preliminary; the public website and model defaults have not been promoted from this result.
+
 The homepage includes an interactive study/model comparison, per-asset scores, down-call accounting, uncertainty intervals, the evaluation method, and downloadable reports for six research stages. It uses the committed public snapshot in `public/research/`, with no live API dependency or stale fallback metrics. Earlier demo data is retained only as archived reference material.
 
 See [website maintenance and publishing](docs/website.md) for updating the snapshot, checking the site, and publishing through the existing Vercel/GitHub workflow.

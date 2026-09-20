@@ -31,3 +31,6 @@ data/context_v4/
 
 # Public earnings source snapshots
 data/earnings_v5/
+
+# Frozen confirmation prices and prospective research records
+data/recent_history_v8/

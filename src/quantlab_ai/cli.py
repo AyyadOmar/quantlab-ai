@@ -70,6 +70,12 @@ def build_parser() -> argparse.ArgumentParser:
     pooled_parser = subparsers.add_parser("pooled-direction-study", help="Compare separate and shared-company models using matched cached dates")
     pooled_parser.add_argument("--start", default="2018-01-01")
     pooled_parser.add_argument("--end", required=True)
+    recent_parser = subparsers.add_parser("recent-history-study", help="Compare full, four-year and two-year training, then freeze confirmation models")
+    recent_parser.add_argument("--start", default="2018-01-01")
+    recent_parser.add_argument("--end", default="2026-05-25")
+    recent_parser.add_argument("--historical-only", action="store_true", help="Reproduce development results without changing the confirmation freeze")
+    confirmation_parser = subparsers.add_parser("recent-history-confirm", help="Evaluate frozen recent-history models on a separate public-price snapshot")
+    confirmation_parser.add_argument("--end", required=True, help="Exclusive end date for the one-time confirmation snapshot")
     context_parser = subparsers.add_parser("context-study", help="Compare cached market and earnings filing context")
     context_parser.add_argument("--tickers", nargs="+", default=["AAPL", "MSFT", "NVDA", "SPY", "QQQ"])
     context_parser.add_argument("--start", default="2018-01-01")
@@ -96,7 +102,15 @@ def main() -> None:
                         slippage_bps=getattr(args, "slippage_bps", 2.0))
     settings.ensure_directories()
 
-    if args.command == "pooled-direction-study":
+    if args.command == "recent-history-study":
+        from .recent_history_study import run_recent_history_study
+        result = run_recent_history_study(settings, args.start, args.end, freeze=not args.historical_only)
+        print(json.dumps(result["aggregates"], indent=2))
+    elif args.command == "recent-history-confirm":
+        from .recent_history_confirmation import run_confirmation
+        result = run_confirmation(settings, args.end)
+        print(json.dumps(result["aggregates"], indent=2))
+    elif args.command == "pooled-direction-study":
         from .pooled_direction_study import run_pooled_direction_study
         result = run_pooled_direction_study(settings, args.start, args.end)
         print(json.dumps(result["aggregates"], indent=2))
