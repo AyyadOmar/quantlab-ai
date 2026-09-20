@@ -1,715 +1,129 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
+import research from "../public/research/results.json";
 
-const defaultSummary = {
-  total_return: -0.3686639960773508,
-  max_drawdown: -0.43869492254445686,
-  sharpe_ratio: -1.0196621431557589,
-  win_rate: 0.45348837209302323,
-  trade_count: 172,
-  benchmark_return: 0.4816990012356057
-};
+const repository = "https://github.com/AyyadOmar/quantlab-ai";
+const modelNames = { xgboost: "XGBoost", logistic_regression: "Logistic regression" };
+const percent = (value) => `${(value * 100).toFixed(2)}%`;
+const points = (value) => `${value > 0.000001 ? "+" : value < -0.000001 ? "−" : ""}${Math.abs(value * 100).toFixed(2)}`;
+const number = (value) => value.toLocaleString("en-US");
+const dateLabel = (value) => new Date(`${value}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 
-const defaultBenchmarks = {
-  buy_and_hold: {
-    total_return: 0.4816990012356057,
-    max_drawdown: -0.30140818086268584,
-    sharpe_ratio: 0.6280743522557665,
-    win_rate: 0.5373563218390804,
-    trade_count: 696
-  },
-  always_long: {
-    total_return: 0.04628895071763006,
-    max_drawdown: -0.3661348113110008,
-    sharpe_ratio: 0.15762110072656865,
-    win_rate: 0.5244252873563219,
-    trade_count: 696
-  },
-  momentum: {
-    total_return: -0.1160872622654644,
-    max_drawdown: -0.350941546506064,
-    sharpe_ratio: -0.20443908929983176,
-    win_rate: 0.28304597701149425,
-    trade_count: 374
-  }
-};
-
-const defaultSignals = [
-  {
-    ticker: "AAPL",
-    model_name: "logistic_regression",
-    as_of_date: "2026-05-22 00:00:00",
-    prediction: 1,
-    prob_up: 0.5409567919713436,
-    signal: 0
-  },
-  {
-    ticker: "AAPL",
-    model_name: "random_forest",
-    as_of_date: "2026-05-22 00:00:00",
-    prediction: 1,
-    prob_up: 0.5578161083352521,
-    signal: 1
-  },
-  {
-    ticker: "AAPL",
-    model_name: "xgboost",
-    as_of_date: "2026-05-22 00:00:00",
-    prediction: 1,
-    prob_up: 0.6176891922950745,
-    signal: 1
-  },
-  {
-    ticker: "AAPL",
-    model_name: "lstm",
-    as_of_date: "2026-05-22 00:00:00",
-    prediction: 1,
-    prob_up: 0.639611542224884,
-    signal: 1
-  }
-];
-
-const defaultCrossValidation = {
-  scheme: "walk_forward",
-  folds: [
-    {
-      fold: 1,
-      rows: 173,
-      start_date: "2022-03-23 00:00:00",
-      end_date: "2022-11-28 00:00:00",
-      accuracy: 0.5549132947976878,
-      precision: 0.5512820512820513,
-      recall: 0.5058823529411764,
-      f1: 0.5276073619631901,
-      roc_auc: 0.5530748663101605
-    },
-    {
-      fold: 2,
-      rows: 173,
-      start_date: "2022-11-29 00:00:00",
-      end_date: "2023-08-08 00:00:00",
-      accuracy: 0.48554913294797686,
-      precision: 0.5113636363636364,
-      recall: 0.4945054945054945,
-      f1: 0.5027932960893855,
-      roc_auc: 0.49597963012597157
-    },
-    {
-      fold: 3,
-      rows: 173,
-      start_date: "2023-08-09 00:00:00",
-      end_date: "2024-04-16 00:00:00",
-      accuracy: 0.4682080924855491,
-      precision: 0.4406779661016949,
-      recall: 0.3058823529411765,
-      f1: 0.3611111111111111,
-      roc_auc: 0.46510695187165774
-    },
-    {
-      fold: 4,
-      rows: 173,
-      start_date: "2024-04-17 00:00:00",
-      end_date: "2024-12-20 00:00:00",
-      accuracy: 0.4161849710982659,
-      precision: 0.6666666666666666,
-      recall: 0.18018018018018017,
-      f1: 0.28368794326241137,
-      roc_auc: 0.5010171461784365
-    }
-  ],
-  summary: {
-    mean_accuracy: 0.48121387283236994,
-    mean_precision: 0.5424975801035123,
-    mean_recall: 0.3716125951420069,
-    mean_f1: 0.41879992810652455,
-    mean_roc_auc: 0.5037946486215565,
-    fold_count: 4
-  }
-};
-
-const defaultBatchLeaderboard = {
-  aggregate: {
-    model_name: "xgboost",
-    tickers: ["AAPL", "MSFT", "NVDA"],
-    start_date: "2018-01-01",
-    end_date: "2026-05-25",
-    experiment_count: 3,
-    failure_count: 0,
-    mean_strategy_return: 2.7460104831809104,
-    median_strategy_return: 0.2003229924190757,
-    mean_sharpe_ratio: 0.9270887090542324,
-    mean_cv_accuracy: 0.5012019230769231,
-    mean_cv_roc_auc: 0.5072337687228755
-  },
-  experiments: [
-    {
-      ticker: "AAPL",
-      model_name: "xgboost",
-      classification_accuracy: 0.46634615384615385,
-      classification_precision: 0.5115384615384615,
-      classification_recall: 0.4117647058823529,
-      classification_f1: 0.45626171875,
-      classification_roc_auc: 0.47836538461538464,
-      mean_cv_accuracy: 0.47716346153846156,
-      mean_cv_precision: 0.5183102737325996,
-      mean_cv_recall: 0.3699486963421979,
-      mean_cv_f1: 0.4295328994349372,
-      mean_cv_roc_auc: 0.4787961092656249,
-      best_threshold: 0.5,
-      strategy_return: 0.06335364713279512,
-      sharpe_ratio: 0.1335177431672168,
-      max_drawdown: -0.2195388144974485,
-      trade_count: 319,
-      buy_and_hold_return: 1.1106937499087626
-    },
-    {
-      ticker: "MSFT",
-      model_name: "xgboost",
-      classification_accuracy: 0.5144230769230769,
-      classification_precision: 0.51440329218107,
-      classification_recall: 0.5631067961165048,
-      classification_f1: 0.5376543209876543,
-      classification_roc_auc: 0.5216828478964401,
-      mean_cv_accuracy: 0.5132211538461539,
-      mean_cv_precision: 0.5476877651465799,
-      mean_cv_recall: 0.49139793041421415,
-      mean_cv_f1: 0.516010955706382,
-      mean_cv_roc_auc: 0.5136984027629816,
-      best_threshold: 0.65,
-      strategy_return: 0.2003229924190757,
-      sharpe_ratio: 0.41716966465571187,
-      max_drawdown: -0.1387822819765273,
-      trade_count: 183,
-      buy_and_hold_return: 0.745980729441563
-    },
-    {
-      ticker: "NVDA",
-      model_name: "xgboost",
-      classification_accuracy: 0.5721153846153846,
-      classification_precision: 0.6041666666666666,
-      classification_recall: 0.5272727272727272,
-      classification_f1: 0.5631067961165048,
-      classification_roc_auc: 0.5494434137291281,
-      mean_cv_accuracy: 0.5132211538461539,
-      mean_cv_precision: 0.5949317226890756,
-      mean_cv_recall: 0.3659504746461268,
-      mean_cv_f1: 0.4469487944072876,
-      mean_cv_roc_auc: 0.5292067941400201,
-      best_threshold: 0.5,
-      strategy_return: 7.97435480999086,
-      sharpe_ratio: 2.2305787193397686,
-      max_drawdown: -0.16528042969633527,
-      trade_count: 280,
-      buy_and_hold_return: 10.583389680263446
-    }
-  ],
-  failures: []
-};
-
-function pct(value) {
-  return `${(value * 100).toFixed(2)}%`;
-}
-
-function ratio(value) {
-  return value.toFixed(2);
-}
-
-function median(values) {
-  if (!values.length) {
-    return 0;
-  }
-  const sorted = [...values].sort((left, right) => left - right);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0
-    ? (sorted[middle - 1] + sorted[middle]) / 2
-    : sorted[middle];
-}
-
-function cls(value) {
-  return value >= 0 ? "positive" : "negative";
-}
-
-const benchmarkRows = (summary, benchmarks) => [
-  {
-    strategy: "Model Strategy",
-    totalReturn: pct(summary.total_return),
-    maxDrawdown: pct(summary.max_drawdown),
-    sharpeRatio: ratio(summary.sharpe_ratio),
-    winRate: pct(summary.win_rate),
-    tradeCount: summary.trade_count
-  },
-  {
-    strategy: "Buy & Hold",
-    totalReturn: pct(benchmarks.buy_and_hold.total_return),
-    maxDrawdown: pct(benchmarks.buy_and_hold.max_drawdown),
-    sharpeRatio: ratio(benchmarks.buy_and_hold.sharpe_ratio),
-    winRate: pct(benchmarks.buy_and_hold.win_rate),
-    tradeCount: benchmarks.buy_and_hold.trade_count
-  },
-  {
-    strategy: "Always Long",
-    totalReturn: pct(benchmarks.always_long.total_return),
-    maxDrawdown: pct(benchmarks.always_long.max_drawdown),
-    sharpeRatio: ratio(benchmarks.always_long.sharpe_ratio),
-    winRate: pct(benchmarks.always_long.win_rate),
-    tradeCount: benchmarks.always_long.trade_count
-  },
-  {
-    strategy: "Momentum",
-    totalReturn: pct(benchmarks.momentum.total_return),
-    maxDrawdown: pct(benchmarks.momentum.max_drawdown),
-    sharpeRatio: ratio(benchmarks.momentum.sharpe_ratio),
-    winRate: pct(benchmarks.momentum.win_rate),
-    tradeCount: benchmarks.momentum.trade_count
-  }
+const experiments = [
+  { id: "baseline", number: "01", title: "Start with a fair test", tag: "Method corrected", text: "Predict the next session’s open-to-close direction. Separate training, validation and testing, with realistic trading costs." },
+  { id: "features", number: "02", title: "Simplify the inputs", tag: "Probability quality improved", text: "Relative price features and smaller, regularized models improved on the original models. An advantage over always-up remained unproven." },
+  { id: "context", number: "03", title: "Add market context", tag: "No reliable advantage", text: "Test sector performance, volatility, interest rates and earnings-related filing recency. The additional inputs did not establish a dependable edge." },
+  { id: "earnings", number: "04", title: "Test earnings information", tag: "Exploratory evidence", text: "114 reported earnings records and 34 NVIDIA advance-call notices. Current estimate snapshots may contain revisions; calendar coverage is incomplete." },
+  { id: "direction", number: "05", title: "Make better down calls", tag: "Below the benchmark", text: "Choose the classification cutoff on earlier validation data, with always-up as a fallback. Incorrect down calls outweighed correct ones." },
+  { id: "shared", number: "06", title: "Learn across companies", tag: "Below the benchmark", text: "Train on Apple, Microsoft and NVIDIA together. Compare with separate models using identical features, settings and evaluation dates." },
 ];
 
 export default function HomePage() {
-  const [summary, setSummary] = useState(defaultSummary);
-  const [benchmarks, setBenchmarks] = useState(defaultBenchmarks);
-  const [signals, setSignals] = useState(defaultSignals);
-  const [crossValidation, setCrossValidation] = useState(defaultCrossValidation);
-  const [batchLeaderboard, setBatchLeaderboard] = useState(defaultBatchLeaderboard);
-  const [activeVisual, setActiveVisual] = useState(null);
-
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const [summaryRes, benchmarksRes, signalsRes, crossValidationRes, batchLeaderboardRes] = await Promise.all([
-          fetch("/demo/aapl_xgboost_summary.json"),
-          fetch("/demo/aapl_xgboost_benchmarks.json"),
-          fetch("/demo/aapl_latest_signals.json"),
-          fetch("/demo/aapl_xgboost_cross_validation.json"),
-          fetch("/demo/batch_xgboost_leaderboard.json")
-        ]);
-
-        if (summaryRes.ok) {
-          setSummary(await summaryRes.json());
-        }
-        if (benchmarksRes.ok) {
-          setBenchmarks(await benchmarksRes.json());
-        }
-        if (signalsRes.ok) {
-          setSignals(await signalsRes.json());
-        }
-        if (crossValidationRes.ok) {
-          setCrossValidation(await crossValidationRes.json());
-        }
-        if (batchLeaderboardRes.ok) {
-          setBatchLeaderboard(await batchLeaderboardRes.json());
-        }
-      } catch (_error) {
-        // Keep baked-in demo fallbacks if the API is unavailable.
-      }
-    }
-
-    loadData();
-  }, []);
-
-  const rows = useMemo(() => benchmarkRows(summary, benchmarks), [summary, benchmarks]);
-  const foldRows = useMemo(
-    () =>
-      crossValidation.folds.map((fold) => ({
-        fold: fold.fold,
-        window: `${fold.start_date.slice(0, 10)} to ${fold.end_date.slice(0, 10)}`,
-        accuracy: pct(fold.accuracy),
-        precision: pct(fold.precision),
-        recall: pct(fold.recall),
-        f1: pct(fold.f1),
-        rocAuc: ratio(fold.roc_auc)
-      })),
-    [crossValidation]
-  );
-  const batchRows = useMemo(
-    () =>
-      batchLeaderboard.experiments.map((experiment) => ({
-        ticker: experiment.ticker,
-        bestThreshold: experiment.best_threshold.toFixed(2),
-        strategyReturn: pct(experiment.strategy_return),
-        buyAndHoldReturn: pct(experiment.buy_and_hold_return),
-        sharpeRatio: ratio(experiment.sharpe_ratio),
-        cvAccuracy: pct(experiment.mean_cv_accuracy),
-        cvRocAuc: ratio(experiment.mean_cv_roc_auc),
-        tradeCount: experiment.trade_count
-      })),
-    [batchLeaderboard]
-  );
-  const medianStrategyReturn = useMemo(() => {
-    const fromAggregate = batchLeaderboard.aggregate.median_strategy_return;
-    if (typeof fromAggregate === "number") {
-      return fromAggregate;
-    }
-    return median(batchLeaderboard.experiments.map((experiment) => experiment.strategy_return));
-  }, [batchLeaderboard]);
+  const [studyId, setStudyId] = useState("shared");
+  const [model, setModel] = useState("xgboost");
+  const study = research.studies.find((item) => item.id === studyId);
+  const selection = study.models[model];
+  const first = selection.aggregates[0];
+  const shared = studyId === "shared";
 
   return (
-    <main className="page-shell">
-      <section className="hero-panel">
-        <div className="eyebrow">Quantitative Machine Learning Research Platform</div>
-        <h1>QuantLab AI</h1>
-        <p className="hero-copy">
-          A production-style quant research system for studying whether stock-direction models generate
-          signals that survive walk-forward validation, benchmark comparison, and realistic backtesting.
-        </p>
-        <div className="hero-callout">
-          Classification signal and tradable edge are not the same thing. QuantLab AI is built to measure
-          that gap honestly.
-        </div>
-        <div className="tag-row">
-          <span>Walk-Forward Validation</span>
-          <span>Benchmark-Aware Backtesting</span>
-          <span>Market Context Features</span>
-          <span>scikit-learn + XGBoost + PyTorch</span>
-        </div>
-      </section>
-
-      <section className="metric-grid">
-        <MetricCard label="Ticker" value="AAPL" />
-        <MetricCard label="Lead Model" value="XGBoost" />
-        <MetricCard label="Strategy Return" value={pct(summary.total_return)} tone={cls(summary.total_return)} />
-        <MetricCard label="Walk-Forward Accuracy" value={pct(crossValidation.summary.mean_accuracy)} />
-      </section>
-
-      <section className="section-stack">
-        <div className="section-header">
-          <h2>Predictive Quality</h2>
-          <p>Walk-forward classification metrics showing how well the model predicts next-day direction out of sample.</p>
-        </div>
-        <div className="metric-grid validation-grid">
-          <MetricCard label="Mean Accuracy" value={pct(crossValidation.summary.mean_accuracy)} />
-          <MetricCard label="Mean Precision" value={pct(crossValidation.summary.mean_precision)} />
-          <MetricCard label="Mean Recall" value={pct(crossValidation.summary.mean_recall)} />
-          <MetricCard label="Mean ROC-AUC" value={ratio(crossValidation.summary.mean_roc_auc)} />
-        </div>
-        <div className="table-card fold-table-card">
-          <table>
-            <thead>
-              <tr>
-                <th>Fold</th>
-                <th>Validation Window</th>
-                <th>Accuracy</th>
-                <th>Precision</th>
-                <th>Recall</th>
-                <th>F1</th>
-                <th>ROC-AUC</th>
-              </tr>
-            </thead>
-            <tbody>
-              {foldRows.map((row) => (
-                <tr key={row.fold}>
-                  <td>{row.fold}</td>
-                  <td>{row.window}</td>
-                  <td>{row.accuracy}</td>
-                  <td>{row.precision}</td>
-                  <td>{row.recall}</td>
-                  <td>{row.f1}</td>
-                  <td>{row.rocAuc}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="content-grid">
-        <article className="card feature-card">
-          <h2>Research Overview</h2>
-          <p>
-            QuantLab AI combines technical indicators, market-relative features, and multiple model families
-            to evaluate whether predictive stock signals translate into robust trading performance.
-          </p>
-          <ul>
-            <li>Historical equity data plus SPY market context</li>
-            <li>Technical signals, relative strength, beta, and correlation features</li>
-            <li>Logistic Regression, Random Forest, XGBoost, and LSTM models</li>
-            <li>Expanding-window walk-forward validation</li>
-            <li>Backtesting versus buy-and-hold, always-long, and momentum baselines</li>
-          </ul>
-        </article>
-
-        <article className="card snapshot-card">
-          <h2>Benchmark Snapshot</h2>
-          <div className="mini-grid">
-            <MiniStat label="Strategy Return" value={pct(summary.total_return)} tone={cls(summary.total_return)} />
-            <MiniStat label="Buy & Hold" value={pct(summary.benchmark_return)} tone="positive" />
-            <MiniStat label="Max Drawdown" value={pct(summary.max_drawdown)} tone="negative" />
-            <MiniStat label="Trade Count" value={String(summary.trade_count)} />
+    <>
+      <a className="skip-link" href="#results">Skip to research results</a>
+      <header className="site-header">
+        <a className="brand" href="#top" aria-label="QuantLab AI home"><img src="/favicon.png" width="34" height="34" alt="" /><span>QuantLab <b>AI</b></span></a>
+        <nav aria-label="Main navigation"><a href="#results">Results</a><a href="#method">Method</a><a href="#research">Research log</a></nav>
+        <a className="repo-link" href={repository} target="_blank" rel="noreferrer">View source <span aria-hidden="true">↗</span></a>
+      </header>
+      <main id="top" className="page-shell">
+        <section className="hero" aria-labelledby="hero-title">
+          <div>
+            <p className="eyebrow"><span className="small-rule" /> Quantitative machine learning research</p>
+            <h1 id="hero-title">Can a model beat<br /><em>“always up”?</em></h1>
+            <p className="hero-copy">A research notebook on stock prediction. Every model is measured against a simple rule, on the same days, with the full result in view.</p>
+            <div className="hero-actions"><a className="button primary" href="#results">Explore the evidence <span aria-hidden="true">↓</span></a><a className="text-link" href="/research/reports/protocol.md" download>Read the protocol <span aria-hidden="true">↗</span></a></div>
           </div>
-          <p className="snapshot-note">
-            The current public XGBoost baseline outperforms naive momentum but still fails to beat passive
-            exposure, which is exactly the kind of result a serious quant workflow should reveal.
-          </p>
-        </article>
-      </section>
+          <aside className="finding-card" aria-label="Current research finding">
+            <div className="finding-top"><span className="eyebrow">Current finding</span><span className="status-dot" aria-hidden="true" /></div>
+            <h2>No reliable<br />advantage. <em>Yet.</em></h2>
+            <p>The latest experiments have not beaten always-up overall. We publish the misses as well as the improvements.</p>
+            <div className="finding-footer"><span>Historical research</span><span>Through May 22, 2026</span></div>
+          </aside>
+        </section>
+        <div className="research-strip"><span><i aria-hidden="true" /> Public data · Reproducible studies</span><span>Next-session open → close</span><span>Fresh-data confirmation still required</span></div>
 
-      <section className="section-stack">
-        <div className="section-header">
-          <h2>Benchmark Comparison</h2>
-          <p>Walk-forward strategy performance versus baseline rules.</p>
-        </div>
-        <div className="table-card">
-          <table>
-            <thead>
-              <tr>
-                <th>Strategy</th>
-                <th>Total Return</th>
-                <th>Max Drawdown</th>
-                <th>Sharpe Ratio</th>
-                <th>Win Rate</th>
-                <th>Trade Count</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.strategy}>
-                  <td>{row.strategy}</td>
-                  <td>{row.totalReturn}</td>
-                  <td>{row.maxDrawdown}</td>
-                  <td>{row.sharpeRatio}</td>
-                  <td>{row.winRate}</td>
-                  <td>{row.tradeCount}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="section-note">
-          Feature expansion improved some steadier names such as AAPL and MSFT, while reducing the earlier
-          outsized NVDA result. That is a healthy sign: the new basket appears less driven by one extreme
-          regime-sensitive winner, even though overall predictive quality remains only modestly above random.
-        </p>
-      </section>
-
-      <section className="section-stack">
-        <div className="section-header">
-          <h2>Cross-Ticker Study</h2>
-          <p>
-            Current public XGBoost basket across {batchLeaderboard.aggregate.experiment_count} completed names:
-            {" "}
-            {batchLeaderboard.aggregate.tickers.join(", ")}.
-          </p>
-        </div>
-        <div className="metric-grid validation-grid">
-          <MetricCard label="Completed Tickers" value={String(batchLeaderboard.aggregate.experiment_count)} />
-          <MetricCard label="Median Strategy Return" value={pct(medianStrategyReturn)} tone={cls(medianStrategyReturn)} />
-          <MetricCard label="Mean CV Accuracy" value={pct(batchLeaderboard.aggregate.mean_cv_accuracy)} />
-          <MetricCard label="Mean CV ROC-AUC" value={ratio(batchLeaderboard.aggregate.mean_cv_roc_auc)} />
-        </div>
-        <div className="table-card">
-          <table>
-            <thead>
-              <tr>
-                <th>Ticker</th>
-                <th>Best Threshold</th>
-                <th>Strategy Return</th>
-                <th>Buy & Hold</th>
-                <th>Sharpe Ratio</th>
-                <th>CV Accuracy</th>
-                <th>CV ROC-AUC</th>
-                <th>Trades</th>
-              </tr>
-            </thead>
-            <tbody>
-              {batchRows.map((row) => (
-                <tr key={row.ticker}>
-                  <td>{row.ticker}</td>
-                  <td>{row.bestThreshold}</td>
-                  <td>{row.strategyReturn}</td>
-                  <td>{row.buyAndHoldReturn}</td>
-                  <td>{row.sharpeRatio}</td>
-                  <td>{row.cvAccuracy}</td>
-                  <td>{row.cvRocAuc}</td>
-                  <td>{row.tradeCount}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="section-stack">
-        <div className="section-header">
-          <h2>Latest Live Signals</h2>
-          <p>Most recent model outputs from the live signal tracking workflow.</p>
-        </div>
-        <div className="signal-grid">
-          {signals.map((signal) => (
-            <article key={signal.model_name} className="signal-card">
-              <div className="signal-topline">
-                <span className="signal-model">{signal.model_name.replaceAll("_", " ")}</span>
-                <span className={`signal-pill ${signal.signal === 1 ? "signal-on" : "signal-off"}`}>
-                  {signal.signal === 1 ? "Trade Signal" : "Watchlist"}
-                </span>
+        <section id="results" className="section-block" aria-labelledby="results-title">
+          <div className="section-heading"><div><p className="eyebrow">01 / The evidence</p><h2 id="results-title">Same days. Same benchmark.</h2></div><p>Always-up predicts a positive session every day.<br />A useful model has to improve on that.</p></div>
+          <div className="results-panel">
+            <div className="result-controls">
+              <div className="study-switch" role="group" aria-label="Choose research study">
+                {research.studies.map((item) => <button key={item.id} type="button" aria-pressed={studyId === item.id} onClick={() => setStudyId(item.id)}>{item.title}<span>{item.tickers.length} {item.id === "shared" ? "companies" : "assets"}</span></button>)}
               </div>
-              <div className="signal-metric">{pct(signal.prob_up)}</div>
-              <div className="signal-label">Probability of upward movement</div>
-              <div className="signal-footer">
-                <span>Prediction: {signal.prediction === 1 ? "Up" : "Down"}</span>
-                <span>{signal.as_of_date.slice(0, 10)}</span>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="section-stack">
-        <div className="section-header">
-          <h2>Visual Analytics</h2>
-          <p>Latest public AAPL XGBoost research outputs from the Python pipeline.</p>
-        </div>
-        <div className="visual-grid visual-grid-wide">
-          <VisualCard
-            src="/images/aapl_xgboost_equity_curve.png"
-            alt="AAPL XGBoost Equity Curve"
-            title="XGBoost Strategy vs Benchmarks"
-            onOpen={() =>
-              setActiveVisual({
-                src: "/images/aapl_xgboost_equity_curve.png",
-                alt: "AAPL XGBoost Equity Curve",
-                title: "XGBoost Strategy vs Benchmarks"
-              })
-            }
-          />
-          <VisualCard
-            src="/images/aapl_xgboost_probabilities.png"
-            alt="AAPL XGBoost Probability Distribution"
-            title="XGBoost Probability Distribution"
-            onOpen={() =>
-              setActiveVisual({
-                src: "/images/aapl_xgboost_probabilities.png",
-                alt: "AAPL XGBoost Probability Distribution",
-                title: "XGBoost Probability Distribution"
-              })
-            }
-          />
-        </div>
-        <div className="visual-grid visual-grid-square">
-          <VisualCard
-            src="/images/aapl_xgboost_confusion_matrix.png"
-            alt="XGBoost Confusion Matrix"
-            title="XGBoost Confusion Matrix"
-            onOpen={() =>
-              setActiveVisual({
-                src: "/images/aapl_xgboost_confusion_matrix.png",
-                alt: "XGBoost Confusion Matrix",
-                title: "XGBoost Confusion Matrix"
-              })
-            }
-          />
-          <VisualCard
-            src="/images/aapl_candlestick.png"
-            alt="AAPL Candlestick Chart"
-            title="AAPL Candlestick Chart"
-            onOpen={() =>
-              setActiveVisual({
-                src: "/images/aapl_candlestick.png",
-                alt: "AAPL Candlestick Chart",
-                title: "AAPL Candlestick Chart"
-              })
-            }
-          />
-        </div>
-      </section>
-
-      <section className="section-stack architecture-stack">
-        <div className="section-header">
-          <h2>System Design</h2>
-          <p>How the research pipeline is organized.</p>
-        </div>
-        <div className="architecture-grid">
-          <article className="card">
-            <h3>Pipeline</h3>
-            <ol>
-              <li>Download ticker data and SPY market context</li>
-              <li>Engineer technical and market-relative features</li>
-              <li>Train models with expanding-window validation</li>
-              <li>Generate out-of-sample probabilities and signals</li>
-              <li>Backtest against baseline strategies</li>
-              <li>Export metrics, charts, and artifacts</li>
-            </ol>
-          </article>
-          <article className="card">
-            <h3>Deployment Shape</h3>
-            <pre>{`Next.js frontend  ->  Vercel
-Python API        ->  Vercel Functions
-Research pipeline ->  Local / batch workflow
-Artifacts         ->  Committed demo assets + JSON`}</pre>
-          </article>
-        </div>
-      </section>
-
-      {activeVisual ? (
-        <div className="lightbox-backdrop" onClick={() => setActiveVisual(null)} role="presentation">
-          <div className="lightbox-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
-            <button className="lightbox-close" onClick={() => setActiveVisual(null)} aria-label="Close image">
-              ×
-            </button>
-            <div className="lightbox-image-wrap">
-              <img src={activeVisual.src} alt={activeVisual.alt} />
+              <label className="model-control">Model<select value={model} onChange={(event) => setModel(event.target.value)}>{Object.entries(modelNames).map(([key, name]) => <option key={key} value={key}>{name}</option>)}</select></label>
             </div>
-            <h3>{activeVisual.title}</h3>
+            <div className="result-body" aria-live="polite" aria-atomic="true">
+              <div className="study-context"><span>{study.tickers.join(" · ")}</span><span>{dateLabel(study.start)} — {dateLabel(study.end)} · {study.sessions_per_asset} sessions per asset</span></div>
+              <div className={`metric-grid ${shared ? "four-metrics" : "three-metrics"}`}>
+                <Metric label="Always-up benchmark" value={percent(first.always_up_accuracy)} note="The score to beat" benchmark />
+                {selection.aggregates.map((row) => <Metric key={row.scope} label={row.label} value={percent(row.accuracy)} note={`${points(row.accuracy_gain)} percentage points vs always-up`} />)}
+                <Metric label="Evaluated predictions" value={number(first.rows)} note={`${study.tickers.length} assets × ${study.sessions_per_asset} sessions`} />
+              </div>
+              <div className="analysis-grid">
+                <div className="chart-section">
+                  <div className="subheading"><h3>Accuracy, in perspective</h3><span>0–100% scale</span></div>
+                  <ComparisonBar label="Always-up" value={first.always_up_accuracy} benchmark />
+                  {selection.aggregates.map((row) => <ComparisonBar key={row.scope} label={row.label} value={row.accuracy} />)}
+                  <p className="chart-note">{shared ? "Identical compact features and regularized settings. Only the training data is shared." : "The model is selected using validation probability quality. Its up/down cutoff is then selected using validation accuracy."}</p>
+                </div>
+                <div className="down-audit">
+                  <p className="eyebrow">What changed the score?</p><h3>Every down call counts.</h3>
+                  <p>A correct down call fixes one always-up error. An incorrect one creates a new error.</p>
+                  {selection.aggregates.map((row) => <div className="audit-row" key={row.scope}><span>{row.label}</span><strong>{row.correct_down} <small>correct</small><span aria-hidden="true"> / </span>{row.incorrect_down} <small>incorrect</small></strong></div>)}
+                  <p className="audit-footnote">All test days are included. No low-confidence days are removed.</p>
+                </div>
+              </div>
+              <div className="asset-section"><div className="subheading"><h3>Look beneath the average</h3><span>{modelNames[model]}</span></div>
+                <div className="table-scroll" role="region" aria-label="Accuracy by asset, horizontally scrollable" tabIndex={0}>
+                  <table><caption className="sr-only">{study.title}: {modelNames[model]} accuracy on the same {study.sessions_per_asset} test sessions per asset</caption><thead><tr><th scope="col">Asset</th><th scope="col">Always-up</th>{selection.aggregates.map((row) => <th scope="col" key={row.scope}>{row.label}</th>)}<th scope="col">{shared ? "Shared-model" : "Selected-rule"} difference</th></tr></thead>
+                    <tbody>{study.tickers.map((ticker) => {
+                      const rows = selection.aggregates.map((aggregate) => selection.assets.find((row) => row.ticker === ticker && row.scope === aggregate.scope));
+                      const last = rows[rows.length - 1];
+                      return <tr key={ticker}><th scope="row">{ticker}</th><td>{percent(rows[0].always_up_accuracy)}</td>{rows.map((row) => <td key={row.scope}>{percent(row.accuracy)}</td>)}<td className={last.accuracy_gain < 0 ? "negative" : "muted"}>{points(last.accuracy_gain)} pp</td></tr>;
+                    })}</tbody>
+                  </table>
+                </div>
+              </div>
+              <details className="uncertainty"><summary>How certain are these results?<span aria-hidden="true">+</span></summary><div><p>These historical dates have already been examined in earlier studies. The intervals below describe uncertainty; they do not establish a fresh-data advantage or account for every experiment tried.</p>{selection.aggregates.map((row) => <p key={row.scope}><strong>{row.label}:</strong> {points(row.interval[0])} to {points(row.interval[1])} percentage points versus always-up (95% descriptive interval).</p>)}<p>We resample 20-session blocks 2,000 times, keeping assets on each date together. Correlated companies are not independent replications. “pp” means percentage points.</p></div></details>
+              <div className="result-footer"><span>{shared ? "Three-company study. Its baseline differs from the five-asset study." : "Five-asset study. Its baseline differs from the three-company study."}</span><a className="text-link" href={study.report} download>Download this report <span aria-hidden="true">↓</span></a></div>
+            </div>
           </div>
-        </div>
-      ) : null}
+        </section>
 
-      <div className="floating-repo-badge">
-        <span className="repo-badge-label">QuantLab AI v0.1</span>
-        <a
-          className="repo-badge-link"
-          href="https://github.com/AyyadOmar/quantlab-ai"
-          target="_blank"
-          rel="noreferrer"
-          aria-label="Open QuantLab AI GitHub repository"
-        >
-          <GitHubIcon />
-        </a>
-      </div>
-    </main>
+        <section id="method" className="section-block" aria-labelledby="method-title">
+          <div className="section-heading"><div><p className="eyebrow">02 / The method</p><h2 id="method-title">Keep the future out of training.</h2></div><p>The question is specific: will the next session<br />close above its opening price?</p></div>
+          <div className="method-grid">
+            <article><span className="step-number">01</span><h3>Learn from the past</h3><p>Build price and market features after a completed trading session. Fit the model and preprocessing on earlier training data.</p><span className="method-label">Training window</span></article>
+            <article><span className="step-number">02</span><h3>Choose the rule</h3><p>Use a later validation window to select settings and the classification cutoff. Always-up remains an eligible fallback.</p><span className="method-label">Validation window</span></article>
+            <article><span className="step-number">03</span><h3>Score later days</h3><p>Freeze those choices before testing on the next window. Leave gaps so earlier label outcomes cannot overlap later windows.</p><span className="method-label">Test window</span></article>
+          </div>
+          <div className="method-notes"><div><h3>Accuracy is not profit.</h3><p>These latest studies evaluate direction, not a trading strategy. Separate backtests assume 5 basis points in fees and 2 in slippage per side. A higher accuracy does not guarantee higher returns.</p></div><div><h3>Historical evidence has limits.</h3><p>Repeated research can overfit a familiar period. A model needs a frozen specification and confirmation on untouched dates before we claim a dependable advantage.</p></div></div>
+        </section>
+
+        <section id="research" className="section-block" aria-labelledby="research-title">
+          <div className="section-heading"><div><p className="eyebrow">03 / The research log</p><h2 id="research-title">What we tried. What we learned.</h2></div><a className="text-link" href="/research/results.json" download>Download result data <span aria-hidden="true">↓</span></a></div>
+          <div className="experiment-grid">{experiments.map((experiment) => <article className="experiment-card" key={experiment.id}><div className="experiment-top"><span className="experiment-number">{experiment.number}</span><span className="experiment-tag">{experiment.tag}</span></div><h3>{experiment.title}</h3><p>{experiment.text}</p><a href={research.reports[experiment.id]} download>Read study <span className="sr-only">— {experiment.title}</span><span aria-hidden="true">↗</span></a></article>)}</div>
+        </section>
+        <section className="closing-note"><div><p className="eyebrow">The next standard of proof</p><h2>A better score must survive new data.</h2><p>New hypotheses will be specified before evaluation. The current experiments remain research results; no new default model has been promoted.</p></div><a className="button secondary" href={repository} target="_blank" rel="noreferrer">Explore the project <span aria-hidden="true">↗</span></a></section>
+        <details className="legacy-note"><summary>About the earlier website results</summary><p>The previous demo used an older close-to-close prediction target and different evaluation assumptions. Its returns, charts and dated sample signals are not comparable with the current open-to-close studies. They remain in the <a href={`${repository}/tree/main/docs/demo`} target="_blank" rel="noreferrer">repository archive</a> for reference. This page presents a published research snapshot, not a live signal feed.</p></details>
+      </main>
+      <footer className="site-footer"><a className="brand" href="#top">QuantLab <b>AI</b></a><p>Independent research. Transparent comparisons.</p><a href={repository} target="_blank" rel="noreferrer">Code & methodology <span aria-hidden="true">↗</span></a></footer>
+    </>
   );
 }
 
-function MetricCard({ label, value, tone }) {
-  return (
-    <article className="metric-card">
-      <div className="metric-label">{label}</div>
-      <div className={`metric-value ${tone ?? ""}`}>{value}</div>
-    </article>
-  );
+function Metric({ label, value, note, benchmark = false }) {
+  return <div className={`metric ${benchmark ? "benchmark" : ""}`}><p className="metric-label">{label}</p><div className="metric-value">{value}</div><p className="metric-note">{note}</p></div>;
 }
-
-function MiniStat({ label, value, tone }) {
-  return (
-    <div className="mini-stat">
-      <div className="mini-label">{label}</div>
-      <div className={`mini-value ${tone ?? ""}`}>{value}</div>
-    </div>
-  );
-}
-
-function VisualCard({ src, alt, title, onOpen }) {
-  return (
-    <article className="visual-card">
-      <div className="visual-frame">
-        <button className="visual-button" onClick={onOpen} aria-label={`Open ${title}`}>
-          <img src={src} alt={alt} />
-        </button>
-      </div>
-      <h3>{title}</h3>
-      <button className="visual-expand" onClick={onOpen}>
-        Expand Chart
-      </button>
-    </article>
-  );
-}
-
-function GitHubIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path
-        fill="currentColor"
-        d="M12 2C6.477 2 2 6.589 2 12.248c0 4.526 2.865 8.367 6.839 9.722.5.095.682-.223.682-.495 0-.244-.009-.891-.014-1.748-2.782.62-3.369-1.37-3.369-1.37-.455-1.183-1.11-1.498-1.11-1.498-.908-.636.069-.623.069-.623 1.004.072 1.532 1.056 1.532 1.056.892 1.566 2.341 1.114 2.91.852.091-.664.349-1.114.635-1.37-2.221-.26-4.555-1.14-4.555-5.073 0-1.121.39-2.038 1.029-2.757-.103-.26-.446-1.307.098-2.724 0 0 .84-.276 2.75 1.053A9.303 9.303 0 0 1 12 6.836c.85.004 1.705.118 2.504.346 1.909-1.329 2.748-1.053 2.748-1.053.546 1.417.202 2.464.1 2.724.64.719 1.027 1.636 1.027 2.757 0 3.943-2.338 4.81-4.566 5.066.359.318.679.944.679 1.903 0 1.374-.012 2.481-.012 2.818 0 .275.18.595.688.494C19.138 20.612 22 16.772 22 12.248 22 6.589 17.523 2 12 2Z"
-      />
-    </svg>
-  );
+function ComparisonBar({ label, value, benchmark = false }) {
+  return <div className={`comparison ${benchmark ? "benchmark" : ""}`}><div className="comparison-label"><span>{label}</span><strong>{percent(value)}</strong></div><div className="bar-track" aria-hidden="true"><div className="bar-fill" style={{ width: `${value * 100}%` }} /></div></div>;
 }

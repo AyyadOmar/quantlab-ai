@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "check:research": "node scripts/check_website_research.mjs"
   },
   "dependencies": {
     "next": "^15.1.0",
