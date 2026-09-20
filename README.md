@@ -1,6 +1,6 @@
 # QuantLab AI
 
-> **Research update:** the Python pipeline now uses the corrected next-session open-to-close protocol with separate chronological validation and testing. Read [the protocol](docs/research_protocol.md) and [the new baseline report](backtesting/open_to_close_v2/baseline_comparison.md). The public demo snapshots and historical performance tables below describe the older close-to-close experiments.
+> **Research update:** the website now presents the corrected next-session open-to-close research, including explicit comparisons against always-up. Read [the protocol](docs/research_protocol.md) and [the latest experiments](docs/direction_study.md). The archived demo snapshots and historical performance tables further below describe older close-to-close experiments; they are no longer the website's headline results.
 
 QuantLab AI is a production-style quantitative machine learning platform for equity research. It ingests market data, engineers technical and market-context features, trains multiple model families, and evaluates signal-driven strategies with walk-forward validation and benchmark-aware backtesting.
 
@@ -20,7 +20,13 @@ An exploratory test now uses reported earnings surprises and dated NVIDIA advanc
 
 ## Direction rules versus always-up
 
-Two historical experiments test validation-selected classification cutoffs and matched shared-company training. See the [cutoff results](backtesting/direction_study_v6/direction_study.md), [shared-model results](backtesting/pooled_direction_study_v7/pooled_direction_study.md), and [methodology and reproduction](docs/direction_study.md). These studies count every test day, keep future outcomes out of selection, and do not change the default models or public website results.
+Two historical experiments test validation-selected classification cutoffs and matched shared-company training. See the [cutoff results](backtesting/direction_study_v6/direction_study.md), [shared-model results](backtesting/pooled_direction_study_v7/pooled_direction_study.md), and [methodology and reproduction](docs/direction_study.md). These studies count every test day, keep future outcomes out of selection, and leave default models unchanged. The website now displays these findings with their historical-data limitations.
+
+## Research website
+
+The homepage includes an interactive study/model comparison, per-asset scores, down-call accounting, uncertainty intervals, the evaluation method, and downloadable reports for six research stages. It uses the committed public snapshot in `public/research/`, with no live API dependency or stale fallback metrics. Earlier demo data is retained only as archived reference material.
+
+See [website maintenance and publishing](docs/website.md) for updating the snapshot, checking the site, and publishing through the existing Vercel/GitHub workflow.
 
 ## Research Focus
 
