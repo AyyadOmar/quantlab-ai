@@ -34,3 +34,6 @@ data/earnings_v5/
 
 # Frozen confirmation prices and prospective research records
 data/recent_history_v8/
+
+# Public news snapshots and first-observed article ledger
+data/news_v9/

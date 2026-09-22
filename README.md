@@ -26,6 +26,10 @@ Two historical experiments test validation-selected classification cutoffs and m
 
 The latest [recent-history experiment](docs/recent_history_study.md) compares full, four-year and two-year training. The historical study did not beat always-up overall. On a separately frozen newer-period confirmation, selected logistic regression scored 51.85% versus 47.74%, with all ten additional correct predictions concentrated in NVIDIA. This remains preliminary; the public website and model defaults have not been promoted from this result.
 
+The [follow-up diagnostic audit](docs/direction_diagnostic_audit.md) adds always-down and causal majority baselines: always-down scored 52.26% on that same newer period, so beating always-up alone does not establish a general advantage. [News research](docs/news_research.md) now includes a timestamped public-feed collector and an experiment plan. No news model has been trained; Microsoft's legacy feed is flagged as stale, and complete news coverage remains unresolved.
+
+The [intraday feature experiment](docs/intraday_study.md) tested three additional inputs on the earlier historical period, with six reproduced controls. It did not improve aggregate accuracy: logistic regression fell from 52.71% to 52.63%, and XGBoost from 53.67% to 53.03%, against 53.79% always-up. These features have not been added to the default models or website predictions.
+
 The homepage includes an interactive study/model comparison, per-asset scores, down-call accounting, uncertainty intervals, the evaluation method, and downloadable reports for six research stages. It uses the committed public snapshot in `public/research/`, with no live API dependency or stale fallback metrics. Earlier demo data is retained only as archived reference material.
 
 See [website maintenance and publishing](docs/website.md) for updating the snapshot, checking the site, and publishing through the existing Vercel/GitHub workflow.
