@@ -4,7 +4,6 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-import shutil
 
 ROOT = Path(__file__).resolve().parents[1]
 REPORTS = {
@@ -15,6 +14,11 @@ REPORTS = {
     "direction": "backtesting/direction_study_v6/direction_study.md",
     "shared": "backtesting/pooled_direction_study_v7/pooled_direction_study.md",
     "protocol": "docs/research_protocol.md",
+    "recent": "backtesting/recent_history_study_v8/recent_history_study.md",
+    "confirmation": "backtesting/recent_history_study_v8/confirmation.md",
+    "intraday": "docs/intraday_study.md",
+    "news": "docs/news_research.md",
+    "diagnostics": "docs/direction_diagnostic_audit.md",
 }
 
 
@@ -22,6 +26,8 @@ def public_row(row):
     fields = ("accuracy", "always_up_accuracy", "accuracy_gain", "rows", "down_calls",
               "correct_down", "incorrect_down", "extra_correct_vs_always_up", "fixed_cutoff_accuracy")
     result = {key: row[key] for key in fields}
+    result["always_down_accuracy"] = 1 - result["always_up_accuracy"]
+    result["accuracy_gain_vs_always_down"] = result["accuracy"] - result["always_down_accuracy"]
     result["interval"] = row["uncertainty"]["interval_95"]
     assert result["rows"] > 0
     assert result["correct_down"] + result["incorrect_down"] == result["down_calls"]
@@ -34,6 +40,8 @@ def export():
     destination = ROOT / "public/research"
     (destination / "reports").mkdir(parents=True, exist_ok=True)
     definitions = [
+        ("confirmation", "Newer confirmation", "backtesting/recent_history_study_v8/confirmation.json",
+         [("full", "Full-history model"), ("validation_selected", "Selected-history model")]),
         ("shared", "Shared training", "backtesting/pooled_direction_study_v7/pooled_direction_study.json",
          [("per_company", "Separate models"), ("shared_companies", "Shared model")]),
         ("direction", "Direction rules", "backtesting/direction_study_v6/direction_study.json",
@@ -44,9 +52,12 @@ def export():
         raw = (ROOT / source).read_bytes()
         report = json.loads(raw)
         first = report["results"][0]
-        study = {"id": key, "title": title, "tickers": report["plan"]["tickers"],
+        confirmation = key == "confirmation"
+        study = {"id": key, "title": title,
+                 "evidence_type": "retrospective_confirmation" if confirmation else "historical_development",
+                 "tickers": sorted({row["ticker"] for row in report["results"]}) if confirmation else report["plan"]["tickers"],
                  "sessions_per_asset": first["rows"], "start": first["execution_start"][:10],
-                 "end": first["execution_end"][:10], "protocol": report["plan"]["protocol"],
+                 "end": first["execution_end"][:10], "protocol": "recent_history_study_v8" if confirmation else report["plan"]["protocol"],
                  "source_sha256": hashlib.sha256(raw).hexdigest(),
                  "report": f"/research/reports/{key}.md", "models": {}}
         for model in ["xgboost", "logistic_regression"]:
@@ -63,11 +74,14 @@ def export():
                     assets.append({"ticker": row["ticker"], "scope": row.get("scope", "selected"), **public_row(row)})
             study["models"][model] = {"aggregates": aggregates, "assets": assets}
         studies.append(study)
-    snapshot = {"schema_version": 1, "status": "historical_research", "studies": studies,
+    snapshot = {"schema_version": 2, "status": "research_snapshot", "studies": studies,
                 "reports": {key: f"/research/reports/{key}.md" for key in REPORTS}}
     (destination / "results.json").write_text(json.dumps(snapshot, indent=2, allow_nan=False) + "\n")
     for key, source in REPORTS.items():
-        shutil.copyfile(ROOT / source, destination / "reports" / f"{key}.md")
+        content = (ROOT / source).read_text()
+        content = content.replace("](direction_diagnostic_audit.md)", "](diagnostics.md)")
+        content = content.replace("](intraday_study.md)", "](intraday.md)")
+        (destination / "reports" / f"{key}.md").write_text(content)
     print(f"Exported {len(studies)} studies and {len(REPORTS)} reports.")
 
 

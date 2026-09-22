@@ -1,10 +1,345 @@
 {
-  "schema_version": 1,
-  "status": "historical_research",
+  "schema_version": 2,
+  "status": "research_snapshot",
   "studies": [
+    {
+      "id": "confirmation",
+      "title": "Newer confirmation",
+      "evidence_type": "retrospective_confirmation",
+      "tickers": [
+        "AAPL",
+        "MSFT",
+        "NVDA"
+      ],
+      "sessions_per_asset": 81,
+      "start": "2026-05-26",
+      "end": "2026-09-18",
+      "protocol": "recent_history_study_v8",
+      "source_sha256": "5bd021376a771daf33e50c74796d4a8a3cad2b15617712d55bbb6884c3962e19",
+      "report": "/research/reports/confirmation.md",
+      "models": {
+        "xgboost": {
+          "aggregates": [
+            {
+              "scope": "full",
+              "label": "Full-history model",
+              "accuracy": 0.4773662551440329,
+              "always_up_accuracy": 0.4773662551440329,
+              "accuracy_gain": 0.0,
+              "rows": 243,
+              "down_calls": 0,
+              "correct_down": 0,
+              "incorrect_down": 0,
+              "extra_correct_vs_always_up": 0,
+              "fixed_cutoff_accuracy": 0.48148148148148145,
+              "always_down_accuracy": 0.522633744855967,
+              "accuracy_gain_vs_always_down": -0.04526748971193412,
+              "interval": [
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "scope": "validation_selected",
+              "label": "Selected-history model",
+              "accuracy": 0.48148148148148145,
+              "always_up_accuracy": 0.4773662551440329,
+              "accuracy_gain": 0.00411522633744856,
+              "rows": 243,
+              "down_calls": 11,
+              "correct_down": 6,
+              "incorrect_down": 5,
+              "extra_correct_vs_always_up": 1,
+              "fixed_cutoff_accuracy": 0.4897119341563786,
+              "always_down_accuracy": 0.522633744855967,
+              "accuracy_gain_vs_always_down": -0.041152263374485576,
+              "interval": [
+                -0.01646090534979424,
+                0.024691358024691357
+              ]
+            }
+          ],
+          "assets": [
+            {
+              "ticker": "AAPL",
+              "scope": "full",
+              "accuracy": 0.5308641975308642,
+              "always_up_accuracy": 0.5308641975308642,
+              "accuracy_gain": 0.0,
+              "rows": 81,
+              "down_calls": 0,
+              "correct_down": 0,
+              "incorrect_down": 0,
+              "extra_correct_vs_always_up": 0,
+              "fixed_cutoff_accuracy": 0.5308641975308642,
+              "always_down_accuracy": 0.4691358024691358,
+              "accuracy_gain_vs_always_down": 0.06172839506172845,
+              "interval": [
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "ticker": "AAPL",
+              "scope": "validation_selected",
+              "accuracy": 0.5308641975308642,
+              "always_up_accuracy": 0.5308641975308642,
+              "accuracy_gain": 0.0,
+              "rows": 81,
+              "down_calls": 0,
+              "correct_down": 0,
+              "incorrect_down": 0,
+              "extra_correct_vs_always_up": 0,
+              "fixed_cutoff_accuracy": 0.5308641975308642,
+              "always_down_accuracy": 0.4691358024691358,
+              "accuracy_gain_vs_always_down": 0.06172839506172845,
+              "interval": [
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "ticker": "MSFT",
+              "scope": "full",
+              "accuracy": 0.4691358024691358,
+              "always_up_accuracy": 0.4691358024691358,
+              "accuracy_gain": 0.0,
+              "rows": 81,
+              "down_calls": 0,
+              "correct_down": 0,
+              "incorrect_down": 0,
+              "extra_correct_vs_always_up": 0,
+              "fixed_cutoff_accuracy": 0.48148148148148145,
+              "always_down_accuracy": 0.5308641975308642,
+              "accuracy_gain_vs_always_down": -0.06172839506172845,
+              "interval": [
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "ticker": "MSFT",
+              "scope": "validation_selected",
+              "accuracy": 0.48148148148148145,
+              "always_up_accuracy": 0.4691358024691358,
+              "accuracy_gain": 0.012345679012345678,
+              "rows": 81,
+              "down_calls": 11,
+              "correct_down": 6,
+              "incorrect_down": 5,
+              "extra_correct_vs_always_up": 1,
+              "fixed_cutoff_accuracy": 0.5061728395061729,
+              "always_down_accuracy": 0.5308641975308642,
+              "accuracy_gain_vs_always_down": -0.04938271604938277,
+              "interval": [
+                -0.04938271604938271,
+                0.07407407407407407
+              ]
+            },
+            {
+              "ticker": "NVDA",
+              "scope": "full",
+              "accuracy": 0.43209876543209874,
+              "always_up_accuracy": 0.43209876543209874,
+              "accuracy_gain": 0.0,
+              "rows": 81,
+              "down_calls": 0,
+              "correct_down": 0,
+              "incorrect_down": 0,
+              "extra_correct_vs_always_up": 0,
+              "fixed_cutoff_accuracy": 0.43209876543209874,
+              "always_down_accuracy": 0.5679012345679013,
+              "accuracy_gain_vs_always_down": -0.13580246913580257,
+              "interval": [
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "ticker": "NVDA",
+              "scope": "validation_selected",
+              "accuracy": 0.43209876543209874,
+              "always_up_accuracy": 0.43209876543209874,
+              "accuracy_gain": 0.0,
+              "rows": 81,
+              "down_calls": 0,
+              "correct_down": 0,
+              "incorrect_down": 0,
+              "extra_correct_vs_always_up": 0,
+              "fixed_cutoff_accuracy": 0.43209876543209874,
+              "always_down_accuracy": 0.5679012345679013,
+              "accuracy_gain_vs_always_down": -0.13580246913580257,
+              "interval": [
+                0.0,
+                0.0
+              ]
+            }
+          ]
+        },
+        "logistic_regression": {
+          "aggregates": [
+            {
+              "scope": "full",
+              "label": "Full-history model",
+              "accuracy": 0.4732510288065844,
+              "always_up_accuracy": 0.4773662551440329,
+              "accuracy_gain": -0.00411522633744856,
+              "rows": 243,
+              "down_calls": 21,
+              "correct_down": 10,
+              "incorrect_down": 11,
+              "extra_correct_vs_always_up": -1,
+              "fixed_cutoff_accuracy": 0.46502057613168724,
+              "always_down_accuracy": 0.522633744855967,
+              "accuracy_gain_vs_always_down": -0.04938271604938266,
+              "interval": [
+                -0.024691358024691357,
+                0.016460905349794237
+              ]
+            },
+            {
+              "scope": "validation_selected",
+              "label": "Selected-history model",
+              "accuracy": 0.5185185185185185,
+              "always_up_accuracy": 0.4773662551440329,
+              "accuracy_gain": 0.0411522633744856,
+              "rows": 243,
+              "down_calls": 12,
+              "correct_down": 11,
+              "incorrect_down": 1,
+              "extra_correct_vs_always_up": 10,
+              "fixed_cutoff_accuracy": 0.5267489711934157,
+              "always_down_accuracy": 0.522633744855967,
+              "accuracy_gain_vs_always_down": -0.004115226337448541,
+              "interval": [
+                0.016460905349794237,
+                0.07818930041152262
+              ]
+            }
+          ],
+          "assets": [
+            {
+              "ticker": "AAPL",
+              "scope": "full",
+              "accuracy": 0.5308641975308642,
+              "always_up_accuracy": 0.5308641975308642,
+              "accuracy_gain": 0.0,
+              "rows": 81,
+              "down_calls": 0,
+              "correct_down": 0,
+              "incorrect_down": 0,
+              "extra_correct_vs_always_up": 0,
+              "fixed_cutoff_accuracy": 0.5308641975308642,
+              "always_down_accuracy": 0.4691358024691358,
+              "accuracy_gain_vs_always_down": 0.06172839506172845,
+              "interval": [
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "ticker": "AAPL",
+              "scope": "validation_selected",
+              "accuracy": 0.5308641975308642,
+              "always_up_accuracy": 0.5308641975308642,
+              "accuracy_gain": 0.0,
+              "rows": 81,
+              "down_calls": 0,
+              "correct_down": 0,
+              "incorrect_down": 0,
+              "extra_correct_vs_always_up": 0,
+              "fixed_cutoff_accuracy": 0.5061728395061729,
+              "always_down_accuracy": 0.4691358024691358,
+              "accuracy_gain_vs_always_down": 0.06172839506172845,
+              "interval": [
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "ticker": "MSFT",
+              "scope": "full",
+              "accuracy": 0.4691358024691358,
+              "always_up_accuracy": 0.4691358024691358,
+              "accuracy_gain": 0.0,
+              "rows": 81,
+              "down_calls": 0,
+              "correct_down": 0,
+              "incorrect_down": 0,
+              "extra_correct_vs_always_up": 0,
+              "fixed_cutoff_accuracy": 0.4444444444444444,
+              "always_down_accuracy": 0.5308641975308642,
+              "accuracy_gain_vs_always_down": -0.06172839506172845,
+              "interval": [
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "ticker": "MSFT",
+              "scope": "validation_selected",
+              "accuracy": 0.4691358024691358,
+              "always_up_accuracy": 0.4691358024691358,
+              "accuracy_gain": 0.0,
+              "rows": 81,
+              "down_calls": 0,
+              "correct_down": 0,
+              "incorrect_down": 0,
+              "extra_correct_vs_always_up": 0,
+              "fixed_cutoff_accuracy": 0.5185185185185185,
+              "always_down_accuracy": 0.5308641975308642,
+              "accuracy_gain_vs_always_down": -0.06172839506172845,
+              "interval": [
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "ticker": "NVDA",
+              "scope": "full",
+              "accuracy": 0.41975308641975306,
+              "always_up_accuracy": 0.43209876543209874,
+              "accuracy_gain": -0.012345679012345678,
+              "rows": 81,
+              "down_calls": 21,
+              "correct_down": 10,
+              "incorrect_down": 11,
+              "extra_correct_vs_always_up": -1,
+              "fixed_cutoff_accuracy": 0.41975308641975306,
+              "always_down_accuracy": 0.5679012345679013,
+              "accuracy_gain_vs_always_down": -0.14814814814814825,
+              "interval": [
+                -0.07407407407407407,
+                0.04938271604938271
+              ]
+            },
+            {
+              "ticker": "NVDA",
+              "scope": "validation_selected",
+              "accuracy": 0.5555555555555556,
+              "always_up_accuracy": 0.43209876543209874,
+              "accuracy_gain": 0.12345679012345678,
+              "rows": 81,
+              "down_calls": 12,
+              "correct_down": 11,
+              "incorrect_down": 1,
+              "extra_correct_vs_always_up": 10,
+              "fixed_cutoff_accuracy": 0.5555555555555556,
+              "always_down_accuracy": 0.5679012345679013,
+              "accuracy_gain_vs_always_down": -0.012345679012345734,
+              "interval": [
+                0.04938271604938271,
+                0.2345679012345679
+              ]
+            }
+          ]
+        }
+      }
+    },
     {
       "id": "shared",
       "title": "Shared training",
+      "evidence_type": "historical_development",
       "tickers": [
         "AAPL",
         "MSFT",
@@ -31,6 +366,8 @@
               "incorrect_down": 46,
               "extra_correct_vs_always_up": -3,
               "fixed_cutoff_accuracy": 0.5314992025518341,
+              "always_down_accuracy": 0.46212121212121215,
+              "accuracy_gain_vs_always_down": 0.07456140350877194,
               "interval": [
                 -0.009569377990430622,
                 0.006379585326953746
@@ -48,6 +385,8 @@
               "incorrect_down": 18,
               "extra_correct_vs_always_up": -7,
               "fixed_cutoff_accuracy": 0.5255183413078149,
+              "always_down_accuracy": 0.46212121212121215,
+              "accuracy_gain_vs_always_down": 0.07296650717703346,
               "interval": [
                 -0.006379585326953748,
                 6.806092106702356e-20
@@ -67,6 +406,8 @@
               "incorrect_down": 1,
               "extra_correct_vs_always_up": 0,
               "fixed_cutoff_accuracy": 0.55622009569378,
+              "always_down_accuracy": 0.4461722488038278,
+              "accuracy_gain_vs_always_down": 0.10765550239234445,
               "interval": [
                 -0.0035885167464114833,
                 0.0035885167464114833
@@ -84,6 +425,8 @@
               "incorrect_down": 17,
               "extra_correct_vs_always_up": -2,
               "fixed_cutoff_accuracy": 0.5287081339712919,
+              "always_down_accuracy": 0.47846889952153115,
+              "accuracy_gain_vs_always_down": 0.04066985645933008,
               "interval": [
                 -0.011961722488038277,
                 0.005980861244019139
@@ -101,6 +444,8 @@
               "incorrect_down": 28,
               "extra_correct_vs_always_up": -1,
               "fixed_cutoff_accuracy": 0.5095693779904307,
+              "always_down_accuracy": 0.46172248803827753,
+              "accuracy_gain_vs_always_down": 0.07535885167464118,
               "interval": [
                 -0.022727272727272728,
                 0.019138755980861243
@@ -118,6 +463,8 @@
               "incorrect_down": 0,
               "extra_correct_vs_always_up": 0,
               "fixed_cutoff_accuracy": 0.5502392344497608,
+              "always_down_accuracy": 0.4461722488038278,
+              "accuracy_gain_vs_always_down": 0.10765550239234445,
               "interval": [
                 0.0,
                 0.0
@@ -135,6 +482,8 @@
               "incorrect_down": 0,
               "extra_correct_vs_always_up": 0,
               "fixed_cutoff_accuracy": 0.5179425837320574,
+              "always_down_accuracy": 0.47846889952153115,
+              "accuracy_gain_vs_always_down": 0.04306220095693769,
               "interval": [
                 0.0,
                 0.0
@@ -152,6 +501,8 @@
               "incorrect_down": 18,
               "extra_correct_vs_always_up": -7,
               "fixed_cutoff_accuracy": 0.5083732057416268,
+              "always_down_accuracy": 0.46172248803827753,
+              "accuracy_gain_vs_always_down": 0.06818181818181812,
               "interval": [
                 -0.019138755980861243,
                 0.0
@@ -173,6 +524,8 @@
               "incorrect_down": 251,
               "extra_correct_vs_always_up": -27,
               "fixed_cutoff_accuracy": 0.5151515151515151,
+              "always_down_accuracy": 0.46212121212121215,
+              "accuracy_gain_vs_always_down": 0.06499202551834127,
               "interval": [
                 -0.027123205741626796,
                 0.005183413078149921
@@ -190,6 +543,8 @@
               "incorrect_down": 185,
               "extra_correct_vs_always_up": -32,
               "fixed_cutoff_accuracy": 0.5147527910685805,
+              "always_down_accuracy": 0.46212121212121215,
+              "accuracy_gain_vs_always_down": 0.06299840510366828,
               "interval": [
                 -0.027910685805422646,
                 0.002392344497607656
@@ -209,6 +564,8 @@
               "incorrect_down": 0,
               "extra_correct_vs_always_up": 0,
               "fixed_cutoff_accuracy": 0.527511961722488,
+              "always_down_accuracy": 0.4461722488038278,
+              "accuracy_gain_vs_always_down": 0.10765550239234445,
               "interval": [
                 0.0,
                 0.0
@@ -226,6 +583,8 @@
               "incorrect_down": 149,
               "extra_correct_vs_always_up": -21,
               "fixed_cutoff_accuracy": 0.507177033492823,
+              "always_down_accuracy": 0.47846889952153115,
+              "accuracy_gain_vs_always_down": 0.01794258373205737,
               "interval": [
                 -0.05980861244019139,
                 0.008373205741626795
@@ -243,6 +602,8 @@
               "incorrect_down": 102,
               "extra_correct_vs_always_up": -6,
               "fixed_cutoff_accuracy": 0.5107655502392344,
+              "always_down_accuracy": 0.46172248803827753,
+              "accuracy_gain_vs_always_down": 0.06937799043062198,
               "interval": [
                 -0.0430622009569378,
                 0.03110047846889952
@@ -260,6 +621,8 @@
               "incorrect_down": 0,
               "extra_correct_vs_always_up": 0,
               "fixed_cutoff_accuracy": 0.5263157894736842,
+              "always_down_accuracy": 0.4461722488038278,
+              "accuracy_gain_vs_always_down": 0.10765550239234445,
               "interval": [
                 0.0,
                 0.0
@@ -277,6 +640,8 @@
               "incorrect_down": 0,
               "extra_correct_vs_always_up": 0,
               "fixed_cutoff_accuracy": 0.507177033492823,
+              "always_down_accuracy": 0.47846889952153115,
+              "accuracy_gain_vs_always_down": 0.04306220095693769,
               "interval": [
                 0.0,
                 0.0
@@ -294,6 +659,8 @@
               "incorrect_down": 185,
               "extra_correct_vs_always_up": -32,
               "fixed_cutoff_accuracy": 0.5107655502392344,
+              "always_down_accuracy": 0.46172248803827753,
+              "accuracy_gain_vs_always_down": 0.038277511961722466,
               "interval": [
                 -0.08373205741626795,
                 0.007177033492822967
@@ -306,6 +673,7 @@
     {
       "id": "direction",
       "title": "Direction rules",
+      "evidence_type": "historical_development",
       "tickers": [
         "AAPL",
         "MSFT",
@@ -334,6 +702,8 @@
               "incorrect_down": 273,
               "extra_correct_vs_always_up": -89,
               "fixed_cutoff_accuracy": 0.5208133971291866,
+              "always_down_accuracy": 0.4569377990430622,
+              "accuracy_gain_vs_always_down": 0.06483253588516746,
               "interval": [
                 -0.034688995215311005,
                 -0.009569377990430622
@@ -353,6 +723,8 @@
               "incorrect_down": 18,
               "extra_correct_vs_always_up": -5,
               "fixed_cutoff_accuracy": 0.5382775119617225,
+              "always_down_accuracy": 0.4461722488038278,
+              "accuracy_gain_vs_always_down": 0.10167464114832536,
               "interval": [
                 -0.019138755980861243,
                 0.004784688995215311
@@ -370,6 +742,8 @@
               "incorrect_down": 61,
               "extra_correct_vs_always_up": -25,
               "fixed_cutoff_accuracy": 0.5227272727272727,
+              "always_down_accuracy": 0.47846889952153115,
+              "accuracy_gain_vs_always_down": 0.013157894736842035,
               "interval": [
                 -0.05625,
                 -0.007147129186603035
@@ -387,6 +761,8 @@
               "incorrect_down": 69,
               "extra_correct_vs_always_up": -15,
               "fixed_cutoff_accuracy": 0.507177033492823,
+              "always_down_accuracy": 0.46172248803827753,
+              "accuracy_gain_vs_always_down": 0.05861244019138756,
               "interval": [
                 -0.04665071770334928,
                 0.006010765550239071
@@ -404,6 +780,8 @@
               "incorrect_down": 12,
               "extra_correct_vs_always_up": -9,
               "fixed_cutoff_accuracy": 0.5215311004784688,
+              "always_down_accuracy": 0.45215311004784686,
+              "accuracy_gain_vs_always_down": 0.08492822966507185,
               "interval": [
                 -0.028708133971291867,
                 0.0
@@ -421,6 +799,8 @@
               "incorrect_down": 113,
               "extra_correct_vs_always_up": -35,
               "fixed_cutoff_accuracy": 0.5143540669856459,
+              "always_down_accuracy": 0.4461722488038278,
+              "accuracy_gain_vs_always_down": 0.06578947368421051,
               "interval": [
                 -0.07897727272727272,
                 -0.01076555023923445
@@ -442,6 +822,8 @@
               "incorrect_down": 302,
               "extra_correct_vs_always_up": -64,
               "fixed_cutoff_accuracy": 0.5210526315789473,
+              "always_down_accuracy": 0.4569377990430622,
+              "accuracy_gain_vs_always_down": 0.07081339712918655,
               "interval": [
                 -0.026794258373205745,
                 -0.0033492822966507186
@@ -461,6 +843,8 @@
               "incorrect_down": 0,
               "extra_correct_vs_always_up": 0,
               "fixed_cutoff_accuracy": 0.527511961722488,
+              "always_down_accuracy": 0.4461722488038278,
+              "accuracy_gain_vs_always_down": 0.10765550239234445,
               "interval": [
                 0.0,
                 0.0
@@ -478,6 +862,8 @@
               "incorrect_down": 63,
               "extra_correct_vs_always_up": -21,
               "fixed_cutoff_accuracy": 0.5095693779904307,
+              "always_down_accuracy": 0.47846889952153115,
+              "accuracy_gain_vs_always_down": 0.01794258373205737,
               "interval": [
                 -0.05263157894736842,
                 -0.0023923444976076554
@@ -495,6 +881,8 @@
               "incorrect_down": 98,
               "extra_correct_vs_always_up": -3,
               "fixed_cutoff_accuracy": 0.5143540669856459,
+              "always_down_accuracy": 0.46172248803827753,
+              "accuracy_gain_vs_always_down": 0.07296650717703346,
               "interval": [
                 -0.03827751196172249,
                 0.03229665071770335
@@ -512,6 +900,8 @@
               "incorrect_down": 0,
               "extra_correct_vs_always_up": 0,
               "fixed_cutoff_accuracy": 0.5442583732057417,
+              "always_down_accuracy": 0.45215311004784686,
+              "accuracy_gain_vs_always_down": 0.09569377990430628,
               "interval": [
                 0.0,
                 0.0
@@ -529,6 +919,8 @@
               "incorrect_down": 141,
               "extra_correct_vs_always_up": -40,
               "fixed_cutoff_accuracy": 0.5095693779904307,
+              "always_down_accuracy": 0.4461722488038278,
+              "accuracy_gain_vs_always_down": 0.05980861244019131,
               "interval": [
                 -0.0861244019138756,
                 -0.011961722488038277
@@ -546,6 +938,11 @@
     "earnings": "/research/reports/earnings.md",
     "direction": "/research/reports/direction.md",
     "shared": "/research/reports/shared.md",
-    "protocol": "/research/reports/protocol.md"
+    "protocol": "/research/reports/protocol.md",
+    "recent": "/research/reports/recent.md",
+    "confirmation": "/research/reports/confirmation.md",
+    "intraday": "/research/reports/intraday.md",
+    "news": "/research/reports/news.md",
+    "diagnostics": "/research/reports/diagnostics.md"
   }
 }
