@@ -73,3 +73,24 @@ PYTHONPATH=src DYLD_FALLBACK_LIBRARY_PATH="$PWD/.venv/lib/python3.9/site-package
 ```
 
 The runner saves the plan, source digests, software versions, fold boundaries, direction probabilities, variance forecasts and per-company scores under `backtesting/news_volatility_v12/`. An employer can inspect how each input becomes available, check the fixed comparisons and run the offline tests. A portfolio can report the historical variance result with its baseline. A claim about future accuracy requires forecasts recorded before their outcomes and scored on fresh sessions.
+
+## Collect news before the close and measure its tone
+
+QuantLab checks GDELT every 15 minutes in the last two hours before the scheduled US stock market close. The local Codex automation uses the Toronto time zone, and the collector checks the exchange calendar for holidays, daylight saving time and early closes. This requires the local scheduler, workspace and network to be available. Missed batches remain visible when inspecting a cutoff. The first live collection and scoring check ran manually on November 22, 2026. The first scheduled trading session is November 23. A checkout on another machine can run the same command with its own scheduler.
+
+```sh
+PYTHONPATH=src .venv/bin/python scripts/collect_press_news.py --scheduled
+PYTHONPATH=src .venv/bin/python scripts/collect_press_news.py --as-of 2026-11-23T21:00:00Z
+```
+
+The first command downloads a pinned quantized FinBERT model on first use during a collection window. It runs inference locally, saves positive, negative and neutral wording scores per headline version, and timestamps the scores when inference finishes. Stocks mentioned together in a headline are excluded from company sentiment summaries when two or more tracked tickers match. Mixed-company stories involving other issuers, syndicated copies, product promotions and non-English headlines still need review. The full stock universe for this experiment is AAPL, MSFT and NVDA. [FinBERT model card](https://huggingface.co/ProsusAI/finbert) · [Quantized model revision](https://huggingface.co/Xenova/finbert/tree/8f269abebfdd9009d7d9b5e96af7e5c6bfe50b20)
+
+The cutoff report includes three text measurements and their coverage:
+
+- Mean FinBERT positive score minus negative score across scored headlines.
+- Mean FinBERT balance for company-specific quotations extracted from the article, when GDELT supplies them. Up to three distinct quotes explicitly mentioning the matched company or a covered product are used. Quotes get equal weight within an article and each article gets equal weight in the final mean.
+- Mean GDELT whole-document tone when available. This measures word use throughout the story and can differ from the headline or the company's news. [GDELT field definitions](https://data.gdeltproject.org/documentation/GDELT-Global_Knowledge_Graph_Codebook-V2.1.pdf)
+
+The report uses only the version observed by the cutoff and its scores already available then. Missing observations or scores have null values. Previously captured headlines can be scored today, with today's scoring time. Raw article text and open-ended article scraping are outside this pipeline. We store article URLs, metadata, headlines, selected quotations and numerical scores locally.
+
+Across the first two distinct batches we scored 13 headlines. Four records included full-document tone after that field was added. None included a qualifying company quotation. In a separate wording check, FinBERT distinguished a raised forecast, a cut forecast and an annual meeting announcement. Those checks assess text interpretation. To evaluate price direction, compare price-only, price plus news volume, and price plus volume and text scores on identical future stock sessions with complete coverage. Freeze model settings before evaluating and report missing sessions, both constant baselines and probability error. A positive story can already be reflected in the price.

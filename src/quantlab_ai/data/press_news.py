@@ -5,6 +5,7 @@ from hashlib import md5, sha256
 from html import unescape
 from io import BytesIO
 import json
+import math
 from pathlib import Path
 import re
 from urllib.parse import urlsplit
@@ -20,7 +21,9 @@ DEFAULT_FOLDER = Path("data/news_v9/gdelt")
 BATCH_PATTERN = r"(\d{14})\.gkg\.csv"
 # Restrict Apple matches to company/product references to avoid fruit headlines.
 HEADLINES = {
-    "AAPL": re.compile(r"\b(?:AAPL|iPhone|iPad|MacBook|Apple (?:Inc|Watch|TV|Music|Pay|Vision|Intelligence|stock|shares|CEO|earnings))\b", re.I),
+    "AAPL": re.compile(r"\b(?:AAPL|iPhone|iPad|MacBook|Apple(?:'s|’s)? (?:Inc|Watch|TV|Music|Pay|Vision|"
+                       r"Intelligence|stock|shares|CEO|earnings|revenue|profit|guidance|outlook|"
+                       r"(?:raises|cuts|lowers|withdraws) (?:its )?(?:guidance|forecast|outlook)))\b", re.I),
     "MSFT": re.compile(r"\b(?:Microsoft|MSFT)\b", re.I),
     "NVDA": re.compile(r"\b(?:Nvidia|NVDA)\b", re.I),
 }
@@ -82,13 +85,34 @@ def parse_batch(payload, name, observed):
                     stats["rejected"] += 1
                     continue
                 published = publication.isoformat() if publication else None
+                # GKG column 16 (V2Tone) begins with signed full-document tone on [-100, 100].
+                try:
+                    tone = float(row[15].split(",", 1)[0])
+                except ValueError:
+                    tone = None
+                if tone is not None and (not math.isfinite(tone) or abs(tone) > 100):
+                    tone = None
+                quotes = []
+                for block in row[22].split("#"):
+                    parts = block.split("|", 3)
+                    if len(parts) == 4 and parts[0].isdigit():
+                        quote = " ".join(unescape(parts[3]).split())[:1000]
+                        if quote:
+                            quotes.append(quote)
                 for ticker in tickers:
+                    excerpts = list(dict.fromkeys(q for q in quotes if HEADLINES[ticker].search(q)
+                                    and not any(p.search(q) for t, p in HEADLINES.items() if t != ticker)))[:3]
                     identity = [ticker, row[3], row[4], title, published]
+                    if tone is not None:
+                        identity.append(tone)
+                    if excerpts:
+                        identity.append(excerpts)
                     records.append({
                         "version_id": sha256(json.dumps(identity).encode()).hexdigest(),
                         "ticker": ticker, "publisher_domain": row[3], "url": row[4], "title": title,
                         "source_kind": "gdelt_web_headline", "match_rule": "company_or_product_in_title",
-                        "published_at": published, "gdelt_batch_at": batch.isoformat(),
+                        "published_at": published, "gdelt_batch_at": batch.isoformat(), "article_tone": tone,
+                        "company_quotes": excerpts,
                         "observed_at": observed.isoformat(), "available_at": observed.isoformat(),
                     })
     if not stats["web_rows"] or stats["web_rows"] == stats["missing_title"]:
@@ -108,12 +132,20 @@ def collect(folder=DEFAULT_FOLDER):
         index = requests.get(INDEX, timeout=(5, 30))
         index.raise_for_status()
         name, size, index_digest = latest_batch(index.text)
+        check_time = datetime.now(timezone.utc)
+        if gdelt_time(name[:14]) > check_time:
+            # A cached index can advertise a slot ahead of the local clock. Read
+            # the most recent nonfuture slot, timestamping receipt now.
+            slot = check_time.replace(minute=(check_time.minute // 15) * 15, second=0, microsecond=0)
+            name = slot.strftime("%Y%m%d%H%M%S.gkg.csv.zip")
+            index_digest = None
+            manifest["archive_selection"] = "current slot; index ahead of clock; ZIP CRC checked while reading"
         manifest["url"] = ARCHIVE + name
         response = requests.get(manifest["url"], timeout=(5, 30))
         response.raise_for_status()
         observed = datetime.now(timezone.utc)
         payload = response.content
-        if len(payload) != size or md5(payload).hexdigest() != index_digest:
+        if index_digest is not None and (len(payload) != size or md5(payload).hexdigest() != index_digest):
             raise ValueError("Archive size or checksum differs from public index")
         manifest.update(observed_at=observed.isoformat(), batch_at=gdelt_time(name[:14]).isoformat(),
                         archive_sha256=sha256(payload).hexdigest())
@@ -130,7 +162,9 @@ def collect(folder=DEFAULT_FOLDER):
                         published_time_known=sum(r["published_at"] is not None for r in records))
     except (requests.RequestException, ValueError, BadZipFile) as error:
         manifest["error"] = str(error)
-    (run / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    temporary = run / "manifest.tmp"
+    temporary.write_text(json.dumps(manifest, indent=2) + "\n")
+    temporary.replace(run / "manifest.json")
     return manifest
 
 
