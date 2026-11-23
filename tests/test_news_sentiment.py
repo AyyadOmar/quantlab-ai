@@ -61,7 +61,7 @@ class SentimentTests(unittest.TestCase):
             self.assertEqual(record["quote_probabilities"][0]["positive"],.8)
 
     def test_market_window_holidays_and_early_closes(self):
-        for date, expected in [("2026-11-23T18:59", False), ("2026-11-23T19:00", True),
+        for date, expected in [("2026-11-23T14:29", False), ("2026-11-23T14:30", True), ("2026-11-23T18:59", True), ("2026-11-23T19:00", True),
                                ("2026-11-23T21:00", False), ("2026-11-26T20:00", False),
                                ("2026-11-27T16:00", True), ("2026-11-27T18:00", False)]:
             self.assertEqual(script.in_collection_window(datetime.fromisoformat(date).replace(tzinfo=timezone.utc)), expected)

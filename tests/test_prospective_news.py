@@ -30,7 +30,32 @@ class ProspectiveNewsTests(unittest.TestCase):
                 path.parent.mkdir(parents=True)
                 path.write_text(json.dumps({"status":"ok", "batch_at":stamp.isoformat(),
                                             "observed_at":(stamp+timedelta(minutes=5)).isoformat()}))
+            missing, coverage = study.news_features(end.isoformat(), root)
+            self.assertEqual(missing, {})
+            self.assertEqual(coverage["expected_morning_batches"], 10)
+            morning_end = end - timedelta(hours=4)
+            for i in range(1, 11):
+                stamp = morning_end - timedelta(minutes=i*15)
+                mp = root/"snapshots"/("morning"+str(i))/"manifest.json"
+                mp.parent.mkdir()
+                mp.write_text(json.dumps({"status":"ok", "batch_at":stamp.isoformat(),
+                                          "observed_at":(stamp+timedelta(minutes=5)).isoformat()}))
             data, _ = study.news_features(end.isoformat(), root)
+            self.assertEqual(data["NVDA"]["morning_headline_balance"], 0)
+            # A morning article and an afternoon revision must retain the noon reading.
+            first = {"ticker":"NVDA", "url":"story", "title":"Nvidia raises guidance", "version_id":"v1",
+                     "gdelt_batch_at":(morning_end-timedelta(minutes=30)).isoformat(),
+                     "available_at":(morning_end-timedelta(minutes=25)).isoformat(), "article_tone":2}
+            revision = {**first,"version_id":"v2","article_tone":-3,"available_at":(end-timedelta(minutes=10)).isoformat()}
+            (root/"articles.jsonl").write_text("".join(json.dumps(r)+"\n" for r in [first,revision]))
+            scores = [{"scorer":study.SCORER,"article_version":r["version_id"],"scored_at":r["available_at"],
+                       "probabilities":{"positive":p,"negative":1-p,"neutral":0},"quote_probabilities":[]}
+                      for r,p in [(first,1),(revision,0)]]
+            (root/"sentiment.jsonl").write_text("".join(json.dumps(r)+"\n" for r in scores))
+            rows, _ = study.news_features(end.isoformat(), root)
+            self.assertEqual(rows["NVDA"]["morning_headline_balance"], 1)
+            self.assertEqual(rows["NVDA"]["morning_article_tone_mean"], 2)
+            self.assertEqual(rows["NVDA"]["headline_urls_1h"], 0)
             self.assertEqual(data["NVDA"]["eligible_urls"], 0)
             self.assertEqual(data["NVDA"]["headline_balance"], 0)
             path.unlink()
@@ -41,7 +66,7 @@ class ProspectiveNewsTests(unittest.TestCase):
     def test_chronological_learning_settlement_and_idempotence(self):
         calendar = study.xc.get_calendar("XNYS")
         days = calendar.sessions_in_range(study.START,"2027-01-08")[:22]
-        inputs = {t:{c:0 for c in study.COUNTS + study.TEXT} for t in study.HEADLINES}
+        inputs = {t:{c:0 for c in study.COUNTS + study.TEXT + study.MORNING} for t in study.HEADLINES}
         with TemporaryDirectory() as tmp, closing(study.connect(Path(tmp)/"demo.db")) as db, \
              patch.object(study, "news_features", return_value=(inputs,{})):
             for i, day in enumerate(days):
@@ -64,7 +89,7 @@ class ProspectiveNewsTests(unittest.TestCase):
 
     def test_failed_fetch_and_late_write_are_retryable(self):
         now = datetime(2026,11,23,21,30,tzinfo=timezone.utc)
-        news = {t:{c:0 for c in study.COUNTS + study.TEXT} for t in study.HEADLINES}
+        news = {t:{c:0 for c in study.COUNTS + study.TEXT + study.MORNING} for t in study.HEADLINES}
         with TemporaryDirectory() as tmp, closing(study.connect(Path(tmp)/"demo.db")) as db, \
              patch.object(study, "news_features",return_value=(news,{})):
             with self.assertRaises(ValueError):

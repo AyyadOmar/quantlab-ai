@@ -1,6 +1,6 @@
 """Collect and score news locally, or inspect what was available at a past cutoff."""
 import argparse
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 import json
 from zoneinfo import ZoneInfo
 
@@ -14,15 +14,14 @@ def in_collection_window(now):
     calendar = exchange_calendars.get_calendar("XNYS")
     if not calendar.is_session(session):
         return False
-    close = calendar.session_close(session)
-    return close - timedelta(hours=2) <= now < close
+    return calendar.session_open(session) <= now < calendar.session_close(session)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument("--as-of", help="Read saved activity and sentiment at an ISO quarter-hour cutoff")
-    modes.add_argument("--scheduled", action="store_true", help="Collect only in the last two hours of a US equity session")
+    modes.add_argument("--scheduled", action="store_true", help="Collect throughout regular US equity trading hours")
     modes.add_argument("--score-pending", action="store_true", help="Score previously collected headlines")
     args = parser.parse_args()
     if args.as_of:

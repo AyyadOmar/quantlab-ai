@@ -168,6 +168,15 @@ def collect(folder=DEFAULT_FOLDER):
     return manifest
 
 
+def healthy_batches(folder, end):
+    healthy = set()
+    for path in (folder / "snapshots").glob("*/manifest.json"):
+        run = json.loads(path.read_text())
+        if run["status"] == "ok" and utc(run["observed_at"]) <= end:
+            healthy.add(utc(run["batch_at"]))
+    return healthy
+
+
 def headline_activity_at(cutoff, folder=DEFAULT_FOLDER):
     """Use batch timestamps for windows and observation timestamps for availability."""
     end = utc(cutoff)
@@ -176,11 +185,7 @@ def headline_activity_at(cutoff, folder=DEFAULT_FOLDER):
     folder = Path(folder)
     recent = {end - timedelta(minutes=15 * i) for i in range(1, 5)}
     previous = {stamp - timedelta(hours=1) for stamp in recent}
-    healthy = set()
-    for path in (folder / "snapshots").glob("*/manifest.json"):
-        run = json.loads(path.read_text())
-        if run["status"] == "ok" and utc(run["observed_at"]) <= end:
-            healthy.add(utc(run["batch_at"]))
+    healthy = healthy_batches(folder, end)
     counts_ready = recent <= healthy
     changes_ready = counts_ready and previous <= healthy
     result = {"cutoff": end.isoformat(), "recent_batches": len(recent & healthy),

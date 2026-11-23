@@ -16,8 +16,8 @@ from sklearn.preprocessing import StandardScaler
 
 from .config import Settings
 from .data.loader import MarketDataLoader
-from .data.news_sentiment import SCORER, sentiment_at
-from .data.press_news import DEFAULT_FOLDER, HEADLINES, headline_activity_at
+from .data.news_sentiment import SCORER, sentiment_at, sentiment_window
+from .data.press_news import DEFAULT_FOLDER, HEADLINES, headline_activity_at, healthy_batches
 
 START = "2026-11-23"
 MIN_TRAIN_SESSIONS = 20
@@ -26,7 +26,9 @@ COUNTS = ["headline_urls_1h", "headline_urls_delta_1h", "eligible_urls",
           "article_tone_scored", "articles_with_scored_quotes"]
 TEXT = ["headline_balance", "article_tone_mean", "quote_balance"]
 ARMS = {"price": PRICE, "counts": PRICE + COUNTS, "wording": PRICE + COUNTS + TEXT}
-DB = DEFAULT_FOLDER / "prospective_direction_v1.sqlite3"
+MORNING = ["morning_" + k for k in ["eligible_urls", "article_tone_scored", "articles_with_scored_quotes", *TEXT]]
+ARMS["morning_and_late"] = ARMS["wording"] + MORNING
+DB = DEFAULT_FOLDER / "prospective_direction_v2.sqlite3"
 NY = ZoneInfo("America/New_York")
 
 
@@ -46,7 +48,8 @@ def connect(path):
     plan = json.dumps({"start": START, "arms": ARMS, "tickers": list(HEADLINES), "min_sessions": MIN_TRAIN_SESSIONS,
                        "model": "StandardScaler + LogisticRegression(liblinear,C=.1,seed=42)",
                        "threshold": .5, "target": "next trading session close > open", "scorer": SCORER,
-                       "calendar": "XNYS", "required_quarter_hour_batches": 8}, sort_keys=True)
+                       "calendar": "XNYS", "required_late_batches": 8,
+                       "morning": "session open to earlier of noon NY or two hours before close; full coverage"}, sort_keys=True)
     with db:
         db.execute("INSERT OR IGNORE INTO protocol VALUES (1,?)", (plan,))
         if db.execute("SELECT settings FROM protocol WHERE id=1").fetchone()[0] != plan:
@@ -97,6 +100,24 @@ def news_features(cutoff, folder):
         # The count paired with each balance distinguishes absent text from neutral wording.
         result[ticker] = {key: fields[key] for key in COUNTS}
         result[ticker].update({key: float(fields[key] or 0) for key in TEXT})
+    # Freeze the morning summary at its own cutoff so afternoon edits cannot enter it.
+    close = pd.Timestamp(cutoff).tz_convert(NY)
+    opening = xc.get_calendar("XNYS").session_open(close.date().isoformat())
+    morning_end = min(close.normalize() + pd.Timedelta(hours=12), close - pd.Timedelta(hours=2))
+    slots = pd.date_range(opening, morning_end.tz_convert("UTC"), freq="15min", inclusive="left")
+    if slots.empty:
+        raise ValueError("Exchange session has no distinct morning window")
+    available = healthy_batches(folder, morning_end)
+    coverage["morning_batches"] = sum(stamp in available for stamp in slots)
+    coverage["expected_morning_batches"] = len(slots)
+    if coverage["morning_batches"] != len(slots):
+        return {}, coverage
+    morning = sentiment_window(folder, opening, morning_end, complete=True)
+    for ticker, fields in morning.items():
+        if fields["headline_scored"] != fields["eligible_urls"]:
+            return {}, {**coverage, "incomplete_morning_scores": True}
+        result[ticker].update({"morning_" + key: float(fields[key] or 0)
+                               for key in ["eligible_urls", "article_tone_scored", "articles_with_scored_quotes", *TEXT]})
     return result, coverage
 
 
@@ -185,10 +206,14 @@ def report(db, now=None):
                 prob = np.full(len(actual), int(arm == "always_up"))
             metrics[arm] = {"correct": int(np.sum((prob >= .5) == actual)), "accuracy": float(np.mean((prob >= .5) == actual)),
                             "brier": float(np.mean((prob-actual)**2))}
+    morning_comparison = None
     changed = None
     if scored:
         correct_with_text = np.array([r["predictions"]["wording"] >= .5 for r in scored]) == actual
         correct_with_counts = np.array([r["predictions"]["counts"] >= .5 for r in scored]) == actual
+        correct_with_morning = np.array([r["predictions"]["morning_and_late"] >= .5 for r in scored]) == actual
+        morning_comparison = {"calls_fixed_by_morning": int(np.sum(correct_with_morning & ~correct_with_text)),
+                              "additional_errors_with_morning": int(np.sum(~correct_with_morning & correct_with_text))}
         changed = {"calls_fixed_by_wording": int(np.sum(correct_with_text & ~correct_with_counts)),
                    "additional_errors_with_wording": int(np.sum(~correct_with_text & correct_with_counts))}
     return {"first_eligible_session": START, "sessions_recorded": len(logged),
@@ -197,7 +222,7 @@ def report(db, now=None):
             "training_sessions": sum(s == "training" for s in logged.values()),
             "forecast_sessions": sum(s == "forecast" for s in logged.values()),
             "resolved_complete_sessions": len({r["day"] for r in resolved}),
-            "scored_forecasts_per_arm": len(scored), "wording_vs_counts": changed, "results": metrics}
+            "scored_forecasts_per_arm": len(scored), "wording_vs_counts": changed, "morning_vs_late": morning_comparison, "results": metrics}
 
 
 if __name__ == "__main__":

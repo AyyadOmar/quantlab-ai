@@ -109,16 +109,21 @@ def score_pending(folder):
 
 
 def sentiment_at(cutoff, folder, activity):
-    """Score latest eligible versions for URLs first observed in the covered hour."""
+    """Score latest eligible versions for URLs first observed in the supplied window."""
     from datetime import timedelta
-    from .press_news import HEADLINES
     end = utc(cutoff)
-    start = end - timedelta(hours=1)
+    return sentiment_window(folder, end - timedelta(hours=1), end,
+                            complete=activity["recent_batches"] == activity["expected_batches_per_hour"])
+
+
+def sentiment_window(folder, start, end, *, complete):
+    """Use news versions and model scores observable by the end of this window."""
+    from .press_news import HEADLINES
     fields = {"eligible_urls": None, "headline_scored": None, "headline_balance": None,
               "article_tone_scored": None, "article_tone_mean": None,
               "articles_with_scored_quotes": None, "quote_balance": None}
     result = {t: fields.copy() for t in HEADLINES}
-    if activity["recent_batches"] != activity["expected_batches_per_hour"]:
+    if not complete:
         return result
     scores = {r["article_version"]: r for r in ledger_rows(folder / "sentiment.jsonl")
               if r["scorer"] == SCORER and utc(r["scored_at"]) <= end}
