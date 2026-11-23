@@ -51,7 +51,8 @@ def parse_batch(payload, name, observed):
     batch = gdelt_time(name[:14])
     if batch > observed:
         raise ValueError("Future GDELT batch")
-    stats = {"rows": 0, "web_rows": 0, "missing_title": 0, "rejected": 0}
+    stats = {"rows": 0, "web_rows": 0, "missing_title": 0, "rejected": 0,
+             "future_publications": []}
     records = []
     with ZipFile(BytesIO(payload)) as archive:
         if archive.namelist() != [name[:-4]]:
@@ -78,11 +79,17 @@ def parse_batch(payload, name, observed):
                 try:
                     publication = gdelt_time(precise[1]) if precise else None
                     parsed = urlsplit(row[4])
-                    if (not row[3] or parsed.scheme not in {"http", "https"} or not parsed.hostname
-                            or (publication is not None and publication > observed)):
-                        raise ValueError("Invalid publisher, article URL or publication time")
+                    if not row[3] or parsed.scheme not in {"http", "https"} or not parsed.hostname:
+                        raise ValueError("Invalid publisher or article URL")
                 except ValueError:
                     stats["rejected"] += 1
+                    continue
+                # A later publication is ineligible at this observation. Preserve
+                # the archive row for audit without admitting it to the article ledger.
+                if publication is not None and publication > observed:
+                    stats["future_publications"].append({
+                        "row": stats["rows"], "tickers": tickers, "published_at": publication.isoformat(),
+                    })
                     continue
                 published = publication.isoformat() if publication else None
                 # GKG column 16 (V2Tone) begins with signed full-document tone on [-100, 100].

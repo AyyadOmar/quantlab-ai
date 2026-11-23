@@ -85,6 +85,10 @@ PYTHONPATH=src .venv/bin/python scripts/collect_press_news.py --as-of 2026-11-23
 
 The first command downloads a pinned quantized FinBERT model on first use during a collection window. It runs inference locally, saves positive, negative and neutral wording scores per headline version, and timestamps the scores when inference finishes. Stocks mentioned together in a headline are excluded from company sentiment summaries when two or more tracked tickers match. Mixed-company stories involving other issuers, syndicated copies, product promotions and non-English headlines still need review. The full stock universe for this experiment is AAPL, MSFT and NVDA. [FinBERT model card](https://huggingface.co/ProsusAI/finbert) · [Quantized model revision](https://huggingface.co/Xenova/finbert/tree/8f269abebfdd9009d7d9b5e96af7e5c6bfe50b20)
 
+On November 23, all 26 scheduled batches arrived. Ten company-matched source records across seven batches carried a publication time later than the time we observed them. The original collector marked those batches partial, and the session was recorded as incomplete.
+
+Beginning with the next live session, the collector skips an otherwise valid article with a future publication time and logs its archive row, matched tickers and reported time under `future_publications` in the batch manifest. These rows never enter counts or sentiment scores from that observation. The `rejected` count now covers malformed records, which still make a batch partial. Missing, stale or failed batches still leave a coverage gap, and eligible sentiment scores must be available by the cutoff. The November 23 result remains part of the original record.
+
 The cutoff report includes three text measurements and their coverage:
 
 - Mean FinBERT positive score minus negative score across scored headlines.

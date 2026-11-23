@@ -1,16 +1,17 @@
 from datetime import datetime, timedelta, timezone
+from hashlib import md5
 import json
 from io import BytesIO
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from zipfile import ZipFile
 
 import requests
 
 from quantlab_ai.data.news import append_versions, available_before
-from quantlab_ai.data.press_news import collect, headline_activity_at, latest_batch, parse_batch
+from quantlab_ai.data.press_news import collect, headline_activity_at, healthy_batches, latest_batch, parse_batch
 
 
 NAME = "20261121181500.gkg.csv.zip"
@@ -63,7 +64,10 @@ class PressNewsTests(unittest.TestCase):
                         ("iPhone sales", "20261121102000"), ("MSFT future", "20261123000000"))
         rows, stats = parse_batch(payload, NAME, observed)
         self.assertEqual([r["ticker"] for r in rows], ["MSFT", "NVDA", "AAPL"])
-        self.assertEqual(stats["rejected"], 1)
+        self.assertEqual(stats["rejected"], 0)
+        self.assertEqual(stats["future_publications"], [
+            {"row": 4, "tickers": ["MSFT"], "published_at": "2026-11-23T00:00:00+00:00"},
+        ])
         self.assertIsNone(rows[0]["published_at"])
         self.assertEqual(rows[-1]["published_at"], "2026-11-21T10:20:00+00:00")
         self.assertEqual(rows[-1]["publisher_domain"], "paper.example")
@@ -75,6 +79,28 @@ class PressNewsTests(unittest.TestCase):
             self.assertEqual(append_versions(ledger, later), 0)
             revised, _ = parse_batch(batch(("iPhone sales revised", "20261121102000")), NAME, observed)
             self.assertEqual(append_versions(ledger, revised), 1)
+
+    def test_future_timestamp_does_not_invalidate_an_observed_batch(self):
+        slot = datetime(2026, 11, 21, 18, 15, tzinfo=timezone.utc)
+        observed = slot + timedelta(minutes=5)
+        for extra, expected in [([], "ok"), ([("MSFT malformed date", "bad-date")], "partial")]:
+            with self.subTest(expected=expected), tempfile.TemporaryDirectory() as tmp:
+                folder = Path(tmp)
+                payload = batch(("Nvidia on time", None), ("Microsoft future", "20261121200000"), *extra)
+                index = f"{len(payload)} {md5(payload).hexdigest()} https://data.gdeltproject.org/gdeltv2/{NAME}"
+                with patch("quantlab_ai.data.press_news.datetime", wraps=datetime) as clock, patch(
+                    "quantlab_ai.data.press_news.requests.get",
+                    side_effect=[Mock(text=index), Mock(content=payload)],
+                ):
+                    clock.now.return_value = observed
+                    result = collect(folder)
+                self.assertEqual(result["status"], expected)
+                self.assertEqual(len(result["future_publications"]), 1)
+                self.assertEqual(result["rejected"], len(extra))
+                article = json.loads((folder / "articles.jsonl").read_text())
+                self.assertEqual(article["title"], "Nvidia on time")
+                self.assertEqual(healthy_batches(folder, observed), {slot} if expected == "ok" else set())
+                self.assertEqual(healthy_batches(folder, slot), set())
 
     def test_require_official_index_and_observable_batch(self):
         digest = "ab" * 16
