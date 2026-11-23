@@ -29,11 +29,13 @@ def main():
         result["sentiment"] = sentiment_at(args.as_of, DEFAULT_FOLDER, result)
     elif args.score_pending:
         result = {"new_scores": score_pending(DEFAULT_FOLDER)}
-    elif args.scheduled and not in_collection_window(datetime.now(timezone.utc)):
-        result = {"status": "outside_collection_window"}
     else:
-        result = collect()
-        result["new_scores"] = score_pending(DEFAULT_FOLDER)
+        scheduled_at = datetime.now(timezone.utc) if args.scheduled else None
+        if scheduled_at is not None and not in_collection_window(scheduled_at):
+            result = {"status": "outside_collection_window"}
+        else:
+            result = collect(scheduled_at=scheduled_at)
+            result["new_scores"] = score_pending(DEFAULT_FOLDER)
     print(json.dumps(result, indent=2))
     return 0 if result.get("status") in {None, "ok", "outside_collection_window"} else 1
 

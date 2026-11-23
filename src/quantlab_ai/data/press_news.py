@@ -8,6 +8,7 @@ import json
 import math
 from pathlib import Path
 import re
+from time import sleep
 from urllib.parse import urlsplit
 from zipfile import BadZipFile, ZipFile
 
@@ -51,7 +52,7 @@ def parse_batch(payload, name, observed):
     batch = gdelt_time(name[:14])
     if batch > observed:
         raise ValueError("Future GDELT batch")
-    stats = {"rows": 0, "web_rows": 0, "missing_title": 0, "rejected": 0,
+    stats = {"rows": 0, "web_rows": 0, "missing_title": 0, "rejected_rows": [],
              "future_publications": []}
     records = []
     with ZipFile(BytesIO(payload)) as archive:
@@ -62,7 +63,9 @@ def parse_batch(payload, name, observed):
                 stats["rows"] += 1
                 row = raw.rstrip(b"\r\n").decode("utf-8", errors="replace").split("\t")
                 if len(row) != 27 or row[1] != name[:14]:
-                    raise ValueError("Unexpected GKG columns or batch timestamp")
+                    stats["rejected_rows"].append({"row": stats["rows"], "reason":
+                        "column count" if len(row) != 27 else "wrong batch timestamp"})
+                    continue
                 if row[2] != "1":  # GKG source collection 1 = web
                     continue
                 stats["web_rows"] += 1
@@ -79,10 +82,12 @@ def parse_batch(payload, name, observed):
                 try:
                     publication = gdelt_time(precise[1]) if precise else None
                     parsed = urlsplit(row[4])
-                    if not row[3] or parsed.scheme not in {"http", "https"} or not parsed.hostname:
-                        raise ValueError("Invalid publisher or article URL")
-                except ValueError:
-                    stats["rejected"] += 1
+                    if not row[3].strip():
+                        raise ValueError("Missing publisher")
+                    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+                        raise ValueError("Invalid article URL")
+                except ValueError as error:
+                    stats["rejected_rows"].append({"row": stats["rows"], "tickers": tickers, "reason": str(error)})
                     continue
                 # A later publication is ineligible at this observation. Preserve
                 # the archive row for audit without admitting it to the article ledger.
@@ -122,12 +127,29 @@ def parse_batch(payload, name, observed):
                         "company_quotes": excerpts,
                         "observed_at": observed.isoformat(), "available_at": observed.isoformat(),
                     })
-    if not stats["web_rows"] or stats["web_rows"] == stats["missing_title"]:
-        raise ValueError("Batch has no web articles with titles")
+    stats["rejected"] = len(stats["rejected_rows"])
+    metadata_errors = sum("tickers" in row for row in stats["rejected_rows"])
+    if stats["web_rows"] <= stats["missing_title"] + metadata_errors:
+        raise ValueError("Batch has no usable titled web records")
     return records, stats
 
 
-def collect(folder=DEFAULT_FOLDER):
+def fetch_archive(url, retry_until):
+    """Give a delayed scheduled archive time to appear at its own URL."""
+    while True:
+        try:
+            response = requests.get(url, timeout=(5, 30))
+            response.raise_for_status()
+            return response
+        except (requests.ConnectionError, requests.Timeout, requests.HTTPError) as error:
+            if isinstance(error, requests.HTTPError) and error.response.status_code not in {404, 408, 429, 500, 502, 503, 504}:
+                raise
+            if retry_until is None or datetime.now(timezone.utc) + timedelta(seconds=20) >= retry_until:
+                raise
+            sleep(20)
+
+
+def collect(folder=DEFAULT_FOLDER, *, scheduled_at=None):
     """Sample the latest batch. Neither skipped batches nor feed failures are no-news days."""
     folder = Path(folder)
     started = datetime.now(timezone.utc)
@@ -139,17 +161,18 @@ def collect(folder=DEFAULT_FOLDER):
         index = requests.get(INDEX, timeout=(5, 30))
         index.raise_for_status()
         name, size, index_digest = latest_batch(index.text)
-        check_time = datetime.now(timezone.utc)
-        if gdelt_time(name[:14]) > check_time:
-            # A cached index can advertise a slot ahead of the local clock. Read
-            # the most recent nonfuture slot, timestamping receipt now.
-            slot = check_time.replace(minute=(check_time.minute // 15) * 15, second=0, microsecond=0)
+        check_time = scheduled_at or started
+        slot = check_time.replace(minute=(check_time.minute // 15) * 15, second=0, microsecond=0)
+        indexed = gdelt_time(name[:14])
+        if scheduled_at is not None:
+            manifest.update(expected_batch_at=slot.isoformat(), indexed_batch_at=indexed.isoformat())
+        if indexed > check_time or (scheduled_at is not None and indexed != slot):
             name = slot.strftime("%Y%m%d%H%M%S.gkg.csv.zip")
             index_digest = None
-            manifest["archive_selection"] = "current slot; index ahead of clock; ZIP CRC checked while reading"
+            manifest["archive_selection"] = "requested current slot directly; ZIP CRC checked while reading"
         manifest["url"] = ARCHIVE + name
-        response = requests.get(manifest["url"], timeout=(5, 30))
-        response.raise_for_status()
+        deadline = slot + timedelta(minutes=15) if scheduled_at is not None else None
+        response = fetch_archive(manifest["url"], deadline)
         observed = datetime.now(timezone.utc)
         payload = response.content
         if index_digest is not None and (len(payload) != size or md5(payload).hexdigest() != index_digest):
@@ -161,7 +184,7 @@ def collect(folder=DEFAULT_FOLDER):
         with (folder / ".ledger.lock").open("a") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX)
             added = append_versions(folder / "articles.jsonl", records)
-        status = "partial" if stats["rejected"] else "ok"
+        status = "ok"
         if observed - gdelt_time(name[:14]) > timedelta(hours=2):
             status = "stale"
         manifest.update(status=status, **stats, added=added,

@@ -19,16 +19,17 @@ from .data.loader import MarketDataLoader
 from .data.news_sentiment import SCORER, sentiment_at, sentiment_window
 from .data.press_news import DEFAULT_FOLDER, HEADLINES, headline_activity_at, healthy_batches
 
-START = "2026-11-23"
+START = "2026-11-24"
 MIN_TRAIN_SESSIONS = 20
 PRICE = ["return_1d", "return_5d", "intraday", "rms_20"]
-COUNTS = ["headline_urls_1h", "headline_urls_delta_1h", "eligible_urls",
+COUNTS = ["headline_urls_1h", "headline_urls_delta_1h", "eligible_urls", "headline_scored",
           "article_tone_scored", "articles_with_scored_quotes"]
 TEXT = ["headline_balance", "article_tone_mean", "quote_balance"]
 ARMS = {"price": PRICE, "counts": PRICE + COUNTS, "wording": PRICE + COUNTS + TEXT}
-MORNING = ["morning_" + k for k in ["eligible_urls", "article_tone_scored", "articles_with_scored_quotes", *TEXT]]
+MORNING_FIELDS = ["eligible_urls", "headline_scored", "article_tone_scored", "articles_with_scored_quotes", *TEXT]
+MORNING = ["morning_" + k for k in MORNING_FIELDS]
 ARMS["morning_and_late"] = ARMS["wording"] + MORNING
-DB = DEFAULT_FOLDER / "prospective_direction_v2.sqlite3"
+DB = DEFAULT_FOLDER / "prospective_direction_v3.sqlite3"
 NY = ZoneInfo("America/New_York")
 
 
@@ -49,6 +50,7 @@ def connect(path):
                        "model": "StandardScaler + LogisticRegression(liblinear,C=.1,seed=42)",
                        "threshold": .5, "target": "next trading session close > open", "scorer": SCORER,
                        "calendar": "XNYS", "required_late_batches": 8,
+                       "sentiment": "average scores available by each cutoff; include eligible and scored counts",
                        "morning": "session open to earlier of noon NY or two hours before close; full coverage"}, sort_keys=True)
     with db:
         db.execute("INSERT OR IGNORE INTO protocol VALUES (1,?)", (plan,))
@@ -92,8 +94,7 @@ def news_features(cutoff, folder):
     if min(coverage["recent_batches"], coverage["previous_batches"]) < coverage["expected_batches_per_hour"]:
         return {}, coverage
     scores = sentiment_at(cutoff, folder, activity)
-    if any(s["headline_scored"] != s["eligible_urls"] for s in scores.values()):
-        return {}, {**coverage, "incomplete_headline_scores": True}
+    coverage["late_unscored_at_cutoff"] = sum(s["eligible_urls"] - s["headline_scored"] for s in scores.values())
     result = {}
     for ticker, s in scores.items():
         fields = {**activity["tickers"][ticker], **s}
@@ -113,11 +114,9 @@ def news_features(cutoff, folder):
     if coverage["morning_batches"] != len(slots):
         return {}, coverage
     morning = sentiment_window(folder, opening, morning_end, complete=True)
+    coverage["morning_unscored_at_cutoff"] = sum(s["eligible_urls"] - s["headline_scored"] for s in morning.values())
     for ticker, fields in morning.items():
-        if fields["headline_scored"] != fields["eligible_urls"]:
-            return {}, {**coverage, "incomplete_morning_scores": True}
-        result[ticker].update({"morning_" + key: float(fields[key] or 0)
-                               for key in ["eligible_urls", "article_tone_scored", "articles_with_scored_quotes", *TEXT]})
+        result[ticker].update({"morning_" + key: float(fields[key] or 0) for key in MORNING_FIELDS})
     return result, coverage
 
 

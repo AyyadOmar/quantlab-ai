@@ -83,8 +83,8 @@ class PressNewsTests(unittest.TestCase):
     def test_future_timestamp_does_not_invalidate_an_observed_batch(self):
         slot = datetime(2026, 11, 21, 18, 15, tzinfo=timezone.utc)
         observed = slot + timedelta(minutes=5)
-        for extra, expected in [([], "ok"), ([("MSFT malformed date", "bad-date")], "partial")]:
-            with self.subTest(expected=expected), tempfile.TemporaryDirectory() as tmp:
+        for extra in [[], [("MSFT malformed date", "bad-date")]]:
+            with self.subTest(extra=extra), tempfile.TemporaryDirectory() as tmp:
                 folder = Path(tmp)
                 payload = batch(("Nvidia on time", None), ("Microsoft future", "20261121200000"), *extra)
                 index = f"{len(payload)} {md5(payload).hexdigest()} https://data.gdeltproject.org/gdeltv2/{NAME}"
@@ -94,13 +94,54 @@ class PressNewsTests(unittest.TestCase):
                 ):
                     clock.now.return_value = observed
                     result = collect(folder)
-                self.assertEqual(result["status"], expected)
+                self.assertEqual(result["status"], "ok")
                 self.assertEqual(len(result["future_publications"]), 1)
                 self.assertEqual(result["rejected"], len(extra))
                 article = json.loads((folder / "articles.jsonl").read_text())
                 self.assertEqual(article["title"], "Nvidia on time")
-                self.assertEqual(healthy_batches(folder, observed), {slot} if expected == "ok" else set())
+                self.assertEqual(healthy_batches(folder, observed), {slot})
                 self.assertEqual(healthy_batches(folder, slot), set())
+
+    def test_bad_rows_are_isolated_but_an_unusable_archive_fails(self):
+        observed = datetime(2026, 11, 21, 18, 22, tzinfo=timezone.utc)
+        with ZipFile(BytesIO(batch(("Nvidia earnings", None)))) as archive:
+            good = archive.read(NAME[:-4]).decode()
+        bad = ["short row", good.replace(NAME[:14], "20261121180000"),
+               good.replace("paper.example\thttps", " \thttps"), good.replace("https:", "file:")]
+        for rows in [bad, [*bad, good]]:
+            payload = BytesIO()
+            with ZipFile(payload, "w") as archive:
+                archive.writestr(NAME[:-4], "\n".join(rows))
+            if rows == bad:
+                with self.assertRaisesRegex(ValueError, "no usable"):
+                    parse_batch(payload.getvalue(), NAME, observed)
+            else:
+                articles, stats = parse_batch(payload.getvalue(), NAME, observed)
+                self.assertEqual([r["title"] for r in articles], ["Nvidia earnings"])
+                self.assertEqual([r["row"] for r in stats["rejected_rows"]], [1, 2, 3, 4])
+
+    def test_scheduled_stale_index_retries_only_the_requested_slot(self):
+        slot = datetime(2026, 11, 21, 18, 15, tzinfo=timezone.utc)
+        scheduled = slot + timedelta(minutes=7)
+        old = NAME.replace("181500", "180000")
+        index = f"1 {'0' * 32} https://data.gdeltproject.org/gdeltv2/{old}"
+        missing = requests.Response()
+        missing.status_code = 404
+        for ready in [False, True]:
+            with self.subTest(ready=ready), tempfile.TemporaryDirectory() as tmp:
+                archive = Mock(content=batch(("Microsoft earnings", None))) if ready else missing
+                finish = slot + timedelta(minutes=14, seconds=55)
+                with patch("quantlab_ai.data.press_news.requests.get", side_effect=[Mock(text=index), missing, archive]) as get, \
+                     patch("quantlab_ai.data.press_news.datetime", wraps=datetime) as clock, \
+                     patch("quantlab_ai.data.press_news.sleep") as wait:
+                    clock.now.side_effect = [scheduled, scheduled, finish]
+                    result = collect(Path(tmp), scheduled_at=scheduled)
+                wait.assert_called_once_with(20)
+                self.assertEqual(result["status"], "ok" if ready else "failed")
+                self.assertEqual(result["expected_batch_at"], slot.isoformat())
+                self.assertTrue(all(c.args[0].endswith(NAME) for c in get.call_args_list[1:]))
+                self.assertEqual(healthy_batches(Path(tmp), finish), {slot} if ready else set())
+                self.assertEqual(healthy_batches(Path(tmp), scheduled), set())
 
     def test_require_official_index_and_observable_batch(self):
         digest = "ab" * 16

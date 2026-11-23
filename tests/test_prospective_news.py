@@ -58,6 +58,21 @@ class ProspectiveNewsTests(unittest.TestCase):
             self.assertEqual(rows["NVDA"]["headline_urls_1h"], 0)
             self.assertEqual(data["NVDA"]["eligible_urls"], 0)
             self.assertEqual(data["NVDA"]["headline_balance"], 0)
+            # Morning and closing scores finishing one second late cannot enter either average.
+            late = {**first, "url": "late", "version_id": "v3", "available_at": (end-timedelta(minutes=5)).isoformat(),
+                    "gdelt_batch_at": (end-timedelta(minutes=15)).isoformat()}
+            on_time = {**late, "url": "on-time", "version_id": "v4"}
+            (root/"articles.jsonl").write_text("".join(json.dumps(r)+"\n" for r in [first, revision, late, on_time]))
+            scores[0]["scored_at"] = (morning_end + timedelta(seconds=1)).isoformat()
+            scores.extend([{**scores[1], "article_version": "v3", "scored_at": (end+timedelta(seconds=1)).isoformat()},
+                           {**scores[0], "article_version": "v4", "scored_at": end.isoformat()}])
+            (root/"sentiment.jsonl").write_text("".join(json.dumps(s)+"\n" for s in scores))
+            rows, coverage = study.news_features(end.isoformat(), root)
+            nvidia = rows["NVDA"]
+            self.assertEqual((nvidia["morning_eligible_urls"], nvidia["morning_headline_scored"]), (1, 0))
+            self.assertEqual(nvidia["morning_headline_balance"], 0)
+            self.assertEqual((nvidia["eligible_urls"], nvidia["headline_scored"], nvidia["headline_balance"]), (2, 1, 1))
+            self.assertEqual((coverage["morning_unscored_at_cutoff"], coverage["late_unscored_at_cutoff"]), (1, 1))
             path.unlink()
             missing, coverage = study.news_features(end.isoformat(), root)
             self.assertEqual(missing,{})
@@ -88,7 +103,7 @@ class ProspectiveNewsTests(unittest.TestCase):
                 self.assertEqual(score["results"][arm],score["results"]["price"])
 
     def test_failed_fetch_and_late_write_are_retryable(self):
-        now = datetime(2026,11,23,21,30,tzinfo=timezone.utc)
+        now = datetime(2026,11,24,21,30,tzinfo=timezone.utc)
         news = {t:{c:0 for c in study.COUNTS + study.TEXT + study.MORNING} for t in study.HEADLINES}
         with TemporaryDirectory() as tmp, closing(study.connect(Path(tmp)/"demo.db")) as db, \
              patch.object(study, "news_features",return_value=(news,{})):
