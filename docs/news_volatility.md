@@ -94,3 +94,28 @@ The cutoff report includes three text measurements and their coverage:
 The report uses only the version observed by the cutoff and its scores already available then. Missing observations or scores have null values. Previously captured headlines can be scored today, with today's scoring time. Raw article text and open-ended article scraping are outside this pipeline. We store article URLs, metadata, headlines, selected quotations and numerical scores locally.
 
 Across the first two distinct batches we scored 13 headlines. Four records included full-document tone after that field was added. None included a qualifying company quotation. In a separate wording check, FinBERT distinguished a raised forecast, a cut forecast and an annual meeting announcement. Those checks assess text interpretation. To evaluate price direction, compare price-only, price plus news volume, and price plus volume and text scores on identical future stock sessions with complete coverage. Freeze model settings before evaluating and report missing sessions, both constant baselines and probability error. A positive story can already be reflected in the price.
+
+## Prospective direction comparison
+
+Starting November 23, 2026, the after-close runner snapshots features for Apple, Microsoft and NVIDIA and assigns the **next exchange session's open-to-close direction** as their target. News stops at the signal session's official close, including early closes. A capture can run from 4:15 p.m. New York time through that evening, allowing the existing daily price loader to accept the completed bar even on early-close days. Prices come from the project's Yahoo Finance loader. The final 20 signal sessions must all have valid daily open and close prices.
+
+We chose one small pooled logistic regression per input set. Each uses the same three stocks, training dates, standardized inputs, fixed regularization (C = 0.1) and a 0.5 decision threshold:
+
+| Comparison | Available inputs |
+|---|---|
+| Price | One- and five-session price changes, today's open-to-close return, trailing 20-session RMS intraday return |
+| Price and counts | Price inputs plus hourly headline count, count change from the previous hour, number of eligible stories, and how many have document tone or scored company quotations |
+| Price, counts and wording | All prior inputs plus average FinBERT headline balance, GDELT article tone and average FinBERT quotation balance |
+
+Including the text-coverage counts in both news models makes the last comparison about the numerical wording scores. If a fully observed window has no qualifying articles, the counts and corresponding text inputs are zero. We skip the entire three-stock session if either hour lacks a healthy batch or if a qualifying headline had no FinBERT score by the close. The report lists coverage failures and missed runs.
+
+The first **20 complete sessions with resolved outcomes** supply initial training examples (60 stock-days). This is a pilot design choice. A fit also needs both up and down examples. After that, each eligible evening the runner fits on previously captured rows with known outcomes and records three probabilities per ticker for the next trading day. All three models continue learning on the same expanding history. A closed session can resolve yesterday's target before today's forecasts are built. The scorecard reports accuracy, correct counts and Brier error for all three arms plus always-up and always-down on identical dates. Small early samples and correlated stocks limit any improvement claim. The main comparison is wording versus counts, followed by both constant baselines.
+
+```sh
+# Capture today's inputs and settle previous forecasts after close.
+PYTHONPATH=src .venv/bin/python -m quantlab_ai.prospective_news --capture
+# Read current coverage and the scorecard, offline.
+PYTHONPATH=src .venv/bin/python -m quantlab_ai.prospective_news
+```
+
+The local weekday after-close automation runs the capture command. Other machines can schedule it at 4:30 p.m. New York time. It safely skips exchange holidays. The local SQLite ledger lives in the ignored GDELT data directory and records signal time, cutoff, target date, coverage, features, training size and forecasts. Separate rows preserve the first resolved prices. Retries cannot overwrite an existing signal. Offline integration tests simulate a sequence of sessions and check when forecasts and scores first become available.
