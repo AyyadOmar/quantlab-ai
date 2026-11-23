@@ -4,6 +4,8 @@
 
 QuantLab AI is a production-style quantitative machine learning platform for equity research. It ingests market data, engineers technical and market-context features, trains multiple model families, and evaluates signal-driven strategies with walk-forward validation and benchmark-aware backtesting.
 
+The [stock direction and volatility experiment](docs/news_volatility.md) tests 265 company disclosures and daily changes in forecast volatility. Across 2,508 historical company-days, the volatility forecast reduced variance error by 4.76% relative to a 20-session estimate. Both direction models trailed always-up when using the combined inputs.
+
 This project is designed to feel closer to a junior quant research or ML engineering platform than a notebook demo. The goal is not to claim a magic stock predictor. The goal is to show realistic research workflow, disciplined evaluation, and strong software engineering structure.
 
 ## Feature and regularization experiments
@@ -29,6 +31,8 @@ The latest [recent-history experiment](docs/recent_history_study.md) compares fu
 The [follow-up diagnostic audit](docs/direction_diagnostic_audit.md) adds always-down and causal majority baselines: always-down scored 52.26% on that same newer period, so beating always-up alone does not establish a general advantage. [News research](docs/news_research.md) now includes a timestamped public-feed collector and an experiment plan. No news model has been trained; Microsoft's legacy feed is flagged as stale, and complete news coverage remains unresolved.
 
 The [intraday feature experiment](docs/intraday_study.md) tested three additional inputs on the earlier historical period, with six reproduced controls. It did not improve aggregate accuracy: logistic regression fell from 52.71% to 52.63%, and XGBoost from 53.67% to 53.03%, against 53.79% always-up. These features have not been added to the default models or website predictions.
+
+The [earnings-and-guidance content study](docs/guidance_study.md) uses [105 archived SEC announcements](docs/guidance_sources.md), including 43 comparable quarterly revenue outlooks. On the same historical dates, XGBoost scored 53.87% versus 53.79% always-up—only two extra correct predictions—and logistic regression worsened to 51.48%. A subsequent [zero-content diagnostic](docs/guidance_placebo.md) reproduced all 2,508 XGBoost direction calls after removing the guidance information while retaining the same input layout. The small lead therefore does not demonstrate a benefit from guidance. Neither the website nor default models were changed by this experiment.
 
 The homepage includes an interactive study/model comparison, per-asset scores, down-call accounting, uncertainty intervals, the evaluation method, and downloadable reports for six research stages. It uses the committed public snapshot in `public/research/`, with no live API dependency or stale fallback metrics. Earlier demo data is retained only as archived reference material.
 
